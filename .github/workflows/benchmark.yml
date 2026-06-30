@@ -7,6 +7,10 @@ name: OpenRouter Benchmark
 on:
   workflow_dispatch:
     inputs:
+      config:
+        description: "Path to the config to run"
+        default: "configs/openrouter.yaml"
+        required: false
       model:
         description: "OpenRouter model id"
         default: "openai/gpt-4o-mini"
@@ -34,12 +38,14 @@ jobs:
 
       - name: Prepare run config
         env:
+          INPUT_CONFIG: ${{ inputs.config }}
           INPUT_MODEL: ${{ inputs.model }}
           INPUT_REPS: ${{ inputs.repetitions }}
         run: |
           python - <<'PY'
           import os, yaml
-          cfg = yaml.safe_load(open("configs/openrouter.yaml"))
+          src = os.environ.get("INPUT_CONFIG") or "configs/openrouter.yaml"
+          cfg = yaml.safe_load(open(src))
           model = os.environ.get("INPUT_MODEL") or cfg["model"]["name"]
           cfg["model"]["name"] = model
           reps = os.environ.get("INPUT_REPS")

@@ -1,0 +1,41 @@
+# Real-model benchmark via OpenRouter on the HARD datasets (adversarial distractors).
+#
+# These cases use obscure/fictional entities so the model must rely on the supplied
+# evidence, plus adversarial distractors that state plausible-but-wrong answers — designed
+# to reveal a real evidence-saturation drop (k* > 1) in a capable model.
+#
+# The API key is read ONLY from the OPENROUTER_API_KEY environment variable.
+#   export OPENROUTER_API_KEY=sk-or-...
+#   evidence-k run --config configs/openrouter_hard.yaml
+
+model:
+  provider: openai_compatible
+  name: openai/gpt-4o-mini
+  temperature: 0
+  max_tokens: 512
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: OPENROUTER_API_KEY
+
+benchmark:
+  k_values: [0, 1, 2, 3, 5, 8, 13, "full"]
+  repetitions: 2
+  random_seed: 42
+
+tasks:
+  - name: factual_qa
+    dataset: data/hard/factual_qa.jsonl
+  - name: state_consistency
+    dataset: data/hard/state_consistency.jsonl
+  - name: conflict_resolution
+    dataset: data/hard/conflict_resolution.jsonl
+  - name: constraint_following
+    dataset: data/hard/constraint_following.jsonl
+
+scoring:
+  weights:
+    correctness: 0.35
+    grounding: 0.20
+    constraint_adherence: 0.20
+    state_consistency: 0.15
+    hallucination_penalty: 0.10
+    cost_penalty: 0.00
