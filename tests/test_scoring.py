@@ -16,6 +16,15 @@ def test_correctness_normalized_match():
     assert scorer.score_correctness("Berlin", "Paris") == 0.0
 
 
+def test_correctness_digit_word_equivalence():
+    # gold word, model answers digit (the gemini failure mode) and vice versa
+    assert scorer.score_correctness("The practice lasts 10 minutes.", "ten") == 1.0
+    assert scorer.score_correctness("ten minutes each morning", "10") == 1.0
+    assert scorer.score_correctness("There are 12 people.", "twelve") == 1.0
+    # a different number must still be wrong
+    assert scorer.score_correctness("8 minutes", "ten") == 0.0
+
+
 def test_grounding_counts_evidence_overlap():
     # answer token present in evidence
     assert scorer.score_grounding("Paris", ["The tower is in Paris."]) == 1.0
