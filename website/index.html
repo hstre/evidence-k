@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Evidence-k — the evidence-saturation point of LLMs</title>
+<meta name="description" content="More context is not monotonically better. Evidence-k measures k*, the evidence-saturation point of an LLM — and shows that whether more context hurts at all is a property of the metric axis, not just the model. Real OpenRouter runs across 8 models, two original adversarial corpora.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>📈</text></svg>">
+<style>
+:root{--bg:#070a10;--panel:#0f1622;--line:#1c2737;--ink:#e8eef7;--muted:#8a99af;--faint:#5c6b82;
+--accent:#2ce6c4;--amber:#e0b03a;--warn:#ff6b6b;--good:#2ce6c4;--bad:#ff6b6b;
+--mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+--sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+header{border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(7,10,16,.86);backdrop-filter:blur(8px);z-index:5}
+.bar{display:flex;align-items:center;gap:16px;height:60px}
+.bar .brand{font:700 18px var(--mono);letter-spacing:.5px;color:var(--ink)}
+.bar .brand b{color:var(--accent)}
+.bar nav{margin-left:auto;display:flex;gap:18px;font:600 13px var(--mono)}
+.hero{padding:54px 0 22px}
+.kicker{font:700 12px var(--mono);letter-spacing:2px;color:var(--accent);text-transform:uppercase}
+h1{font:800 38px/1.12 var(--sans);margin:12px 0 14px;letter-spacing:-.5px}
+h2{font:800 23px var(--sans);margin:44px 0 10px;letter-spacing:-.3px}
+h2 .n{color:var(--accent);font:700 15px var(--mono);margin-right:8px}
+.lede{font-size:18px;color:#cdd8e8;max-width:82ch}
+.lede b{color:var(--ink)}
+.eq{display:block;font:600 15px var(--mono);color:var(--accent);background:#0b111b;border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:18px 0;max-width:max-content}
+.tag{display:inline-block;font:700 11px var(--mono);padding:3px 9px;border:1px solid var(--line);border-radius:999px;color:var(--muted);margin:2px 6px 2px 0}
+.tag.ok{color:var(--good);border-color:#1c4a44} .tag.no{color:var(--warn);border-color:#4a1c1c} .tag.op{color:var(--amber);border-color:#4a3a1c}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:16px 0}
+table{width:100%;border-collapse:collapse;font:13px var(--mono);margin:6px 0}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:center}
+thead th,tbody th{background:#0b111b;color:var(--muted);font-weight:700}
+tbody th{text-align:left;color:var(--ink);white-space:nowrap}
+td.good{color:var(--good);font-weight:700} td.bad{color:var(--bad);font-weight:700} td.amber{color:var(--amber);font-weight:700}
+td.na{color:var(--faint)}
+.muted{color:var(--muted)} .small{font-size:13.5px}
+ul.q{list-style:none;padding:0;margin:8px 0}
+ul.q>li{padding:10px 0 10px 26px;border-top:1px solid var(--line);position:relative}
+ul.q>li:before{content:"▸";position:absolute;left:4px;color:var(--accent)}
+ul.q>li b{color:var(--ink)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.cols h3{font:700 13px var(--mono);letter-spacing:.5px;margin:0 0 8px}
+.cols .up h3{color:var(--bad)} .cols .down h3{color:var(--good)}
+.cols ul{margin:0;padding-left:18px} .cols li{margin:5px 0;font-size:14px;color:#cdd8e8}
+.big{font:800 30px var(--mono);color:var(--accent)}
+footer{border-top:1px solid var(--line);margin-top:48px;padding:26px 0;color:var(--muted);font-size:13px}
+@media(max-width:760px){.cols{grid-template-columns:1fr} h1{font-size:30px} .bar nav{gap:12px}}
+</style>
+</head>
+<body>
+<header><div class="wrap bar">
+<span class="brand">Evidence<b>-k</b></span>
+<nav>
+<a href="https://github.com/hstre/evidence-k">Code ↗</a>
+<a href="https://github.com/hstre/evidence-k/blob/main/docs/paper/evidence-saturation-k.md">Paper ↗</a>
+</nav></div></header>
+
+<main class="wrap">
+<section class="hero">
+<div class="kicker">Measurement &amp; benchmark · we report the blind axis too</div>
+<h1>More context is not monotonically better. <span style="color:var(--accent)">How much is?</span></h1>
+<p class="lede">For a given model, task and context format there is a measurable region where extra
+evidence improves reliability — beyond which it adds noise, drift and cost for no gain. <b>Evidence-k</b>
+measures <b>k*</b>, that evidence-saturation point, with a reproducible protocol.</p>
+<span class="eq">k* = argmax<sub>k</sub>  Reliability(model, task, evidence<sub>k</sub>)</span>
+<p class="lede"><b>The load-bearing finding:</b> the answer depends on <b>which reliability axis you
+measure</b>. A correctness-only sweep shows strong models as saturation-free — while a contamination
+sweep on the <b>same answer</b> bends underneath it, invisible. "No decline" meant <b>wrong axis</b>,
+not "no damage".</p>
+<p style="margin-top:16px">
+<span class="tag ok">blind axis is real</span>
+<span class="tag ok">capability ⇒ less contamination (within a lineage)</span>
+<span class="tag no">not a clean size law</span>
+<span class="tag op">strong-model immunity = threshold, not wall</span>
+<span class="tag ok">own corpora · own metric · no external dataset</span>
+</p>
+</section>
+
+<h2><span class="n">1</span>The blind axis · one answer, two verdicts</h2>
+<p class="lede small">The dual-instrumented benchmark scores <b>one response</b> on both axes at the same
+k, removing the task confound. Each case hides a single-token fact inside register-laden source prose
+and asks the model to describe the practice and state the fact — so engaging the manipulative framing
+is unavoidable, and any adoption is observable.</p>
+<div class="panel small">
+<table>
+<thead><tr><th style="text-align:left">model</th><th>class</th><th>correctness flat 1.0?</th><th>max contamination</th><th>onset k</th></tr></thead>
+<tbody>
+<tr><th>ibm-granite-4.0-h-micro</th><td>small</td><td class="good">yes</td><td class="bad">0.084</td><td>k=1</td></tr>
+<tr><th>qwen-2.5-7b</th><td>small</td><td class="good">yes</td><td class="bad">0.053</td><td>k=1 · never 0</td></tr>
+<tr><th>llama-3.2-3b</th><td>small</td><td class="bad">no · 0.38–0.75</td><td>0.021</td><td class="na">—</td></tr>
+<tr><th>ibm-granite-4.1-8b</th><td>mid</td><td class="good">yes</td><td class="bad">0.070</td><td>k=1</td></tr>
+<tr><th>gpt-4o</th><td>flagship</td><td class="good">yes</td><td class="bad">0.053</td><td>k=1</td></tr>
+<tr><th>claude-opus-4.8</th><td>flagship</td><td class="good">yes</td><td class="amber">0.049</td><td>k=8</td></tr>
+<tr><th>gpt-5.5-pro</th><td>flagship · largest</td><td class="good">yes</td><td class="good">0.014</td><td>~never</td></tr>
+<tr><th>gemini-2.5-pro</th><td>flagship</td><td class="na">—</td><td class="na">—</td><td class="na">unmeasurable¹</td></tr>
+</tbody>
+</table>
+<p class="muted small" style="margin:8px 0 0">n = 8 cases, pilot — magnitudes are small (0.01–0.08); read the
+<b>structure</b>, not the absolute numbers. For 6 of 7 valid models correctness is a flat <b>1.000</b> at
+every k≥1 while contamination of 0.05–0.08 sits entirely underneath it. A correctness-only profile
+certifies all of them as saturation-free; they are not. <span class="na">¹ gemini returned empty
+content via the OpenRouter shim — a content-extraction artifact, excluded pending an adapter fix.</span></p>
+</div>
+<ul class="q">
+<li><b>Within a lineage, more capable ⇒ less contamination, later onset.</b> Cleanly twice: Granite micro
+0.084 → 8B 0.070; gpt-4o 0.053 → gpt-5.5-pro 0.014. The most capable model is nearly immune even at full
+context; opus resists until k=8.</li>
+<li><b>But it is <span style="color:var(--warn)">not</span> a clean size law.</b> llama-3.2-3b (small)
+contaminates little (0.021) yet is unreliably <i>correct</i> — a different failure. The driver is
+capability/recency, not parameter count or the "flagship" label.</li>
+<li><b>The harm concentrates on weak-model-plus-more-context</b> — the cost-driven "small model + lots of
+RAG" configuration — and a correctness-only k-profile is blind to exactly it.</li>
+</ul>
+
+<h2><span class="n">2</span>Register credibility reverses by capability</h2>
+<p class="lede small">Objection: the §1 register is overtly esoteric, which a strong model trivially keeps
+at arm's length. So we wrote a second, <b>fully original</b> adversarial corpus in a <b>credible</b>
+register — trauma-informed coaching / clinical jargon that reads as professional competence and is
+manipulative only when adopted unquoted — and ran the same density sweep (framing leakage, summed over 3
+cases).</p>
+<div class="panel small">
+<table>
+<thead><tr><th style="text-align:left">model</th><th>class</th><th>credible baseline</th><th>credible peak</th><th>eso reference</th><th>direction</th></tr></thead>
+<tbody>
+<tr><th>llama-3.1-8b</th><td>mid</td><td class="bad">6.0</td><td>6.0 (baseline)</td><td>~3.0</td><td class="bad">amplifies ↑</td></tr>
+<tr><th>claude-opus-4.8</th><td>flagship</td><td class="good">2.0</td><td>4.0 (k=8)</td><td>9.0 → 6.0</td><td class="good">dampens ↓</td></tr>
+</tbody>
+</table>
+<p class="muted small" style="margin:8px 0 0">The mechanism is visible in the transcripts: opus attributes
+the coaching jargon cleanly ("the source reframes the doubt as a 'limiting belief'") — scored as
+<i>quoted</i>, not adopted — while the weaker model takes the same vocabulary on unquoted. <b>A more
+credible register is not a lever against strong models; it is a lever against weak ones.</b></p>
+</div>
+<div class="cols" style="margin-top:6px">
+<div class="panel up"><h3>credible register · mid model</h3>
+<ul><li>baseline framing leakage <b>6.0</b> vs eso ~3.0</li><li>register drift 0.4–0.6, pulled into the
+therapist role</li><li>adopts professional jargon unquoted</li></ul></div>
+<div class="panel down"><h3>credible register · strong model</h3>
+<ul><li>baseline <b>2.0</b> — lower than its own eso 9.0</li><li>attributes the jargon, keeps distance</li>
+<li>the engineered-harder register made it <i>cleaner</i></li></ul></div>
+</div>
+
+<h2><span class="n">3</span>Is the strong model immune — or is it just deferred?</h2>
+<p class="lede small">Neither pure immunity nor merely "push k higher". The honest reading is a
+<b>capability-gated threshold</b>:</p>
+<ul class="q">
+<li><b>Not a wall.</b> opus is not categorically immune — it <i>did</i> bend under enough multi-turn
+pressure. The threshold simply sits higher for more capable models; for gpt-5.5-pro no lever we tried
+(raw volume, state density, credible register) crossed it at all.</li>
+<li><b>State density k is the wrong knob.</b> The sweep is U-shaped: framing leakage falls to an interior
+minimum, then rises again by k=8. But that high-k uptick is the <b>hygiene state itself</b> quoting more
+source vocabulary — the tool degrading toward raw ingestion — <b>not the model failing</b>. Past k≈full it
+is just raw context by another name.</li>
+<li><b>The only lever that moved a strong model was multi-turn accumulation</b> — a persona/protocol
+apparatus this work deliberately does <b>not</b> build on. Chasing the threshold that way is an arms race
+against model releases, not a stable result.</li>
+</ul>
+
+<h2><span class="n">4</span>What this is — and is not</h2>
+<div class="panel">
+<p class="small" style="margin:0">A <b>pilot / proof-of-method</b>: tiny synthetic datasets (3–8 cases),
+two <b>original</b> adversarial corpora (esoteric + credible register), an 8-model dual-axis sweep, and an
+external contamination table used only as a removable cross-check. Enough to establish the <b>method</b>,
+the <b>blind-axis</b> finding and the <b>capability-reversal</b> — not enough for a publishable accuracy
+claim. The contamination metric is a closed, versioned marker set; every load-bearing dataset is original
+to this work, so no third-party persona framework and no external dataset is required for any claim.</p>
+</div>
+<p class="lede" style="margin-top:18px"><b>Consequence for routers &amp; governance:</b> inject top-k*, not
+"much context" — and never build a k-profile on correctness alone. A profile that cannot see the
+contamination axis calibrates on the axis that happens to see nothing.</p>
+
+</main>
+<footer><div class="wrap">
+Evidence-k · reproducible OpenRouter runs, temperature 0, fixed seed · pilot, small N, relative comparisons.
+&nbsp;·&nbsp; <a href="https://github.com/hstre/evidence-k">github.com/hstre/evidence-k</a>
+&nbsp;·&nbsp; <a href="https://github.com/hstre/evidence-k/blob/main/docs/paper/evidence-saturation-k.md">full working paper</a>
+</div></footer>
+</body>
+</html>
