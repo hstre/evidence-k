@@ -132,36 +132,53 @@ asks the model to describe the practice and state the fact — so engaging the m
 is unavoidable and any adoption is observable. Correctness and contamination (vendored DESi
 framing-leakage heuristics, normalised to a `[0,1]` severity) are read off the *same* answer.
 
-Run across the model size spectrum via OpenRouter (`configs/openrouter_dual.yaml`, repetitions 2;
-correctness is flat `1.000` at every k≥1 for all valid models):
+Run across the model size spectrum via OpenRouter (`configs/openrouter_dual.yaml`, repetitions 2):
 
-| model | class | max contamination | onset k | blind-spot severity |
+| model | class | correctness flat 1.0? | max contamination | onset k |
 |---|---|---|---|---|
-| `ibm-granite/granite-4.0-h-micro` | small | **0.084** | k=1 | 0.056 |
-| `ibm-granite/granite-4.1-8b` | mid | **0.070** | k=1 | ~0.060 |
-| `anthropic/claude-opus-4.8` | flagship | **0.049** | k=8 | 0.018 |
-| `openai/gpt-5.5-pro` | flagship (largest) | **0.014** | trace, then ~0 | ~0.000 |
-| `google/gemini-2.5-pro` | flagship | — | — | excluded: scoring artifact¹ |
+| `ibm-granite/granite-4.0-h-micro` | small | yes | **0.084** | k=1 |
+| `qwen/qwen-2.5-7b-instruct` | small | yes | **0.053** | k=1 (never 0) |
+| `meta-llama/llama-3.2-3b-instruct` | small | **no** (0.38–0.75) | **0.021** | — |
+| `ibm-granite/granite-4.1-8b` | mid | yes | **0.070** | k=1 |
+| `openai/gpt-4o` | flagship | yes | **0.053** | k=1 |
+| `anthropic/claude-opus-4.8` | flagship | yes | **0.049** | k=8 |
+| `openai/gpt-5.5-pro` | flagship (largest) | yes | **0.014** | ~never |
+| `google/gemini-2.5-pro` | flagship | — | — | unmeasurable¹ |
 
-**Contamination susceptibility decreases monotonically with model capability** (0.084 → 0.070 →
-0.049 → 0.014), and its **onset k moves later** (k=1 for small/mid; k=8 for opus; effectively
-never for gpt-5.5-pro). Meanwhile correctness is a flat `1.000` everywhere and sees none of it —
-the blind axis, now demonstrated cross-model on one shared input/k.
+Four findings, stated at the strength the data supports (n = 8 cases, pilot — magnitudes are
+small (0.01–0.08); treat the *structure*, not the absolute numbers):
 
-This **refutes** the intuitive "more capable / more context → more hidden harm" framing. The harm
-concentrates exactly where cost-conscious deployment points: **a small model fed a lot of
-context.** The strongest model is nearly immune even at full context; the weakest contaminates
-from the first fragment.
+1. **The blind axis is real and robust.** For 6 of 7 valid models correctness is a flat `1.000`
+   at every k≥1 while contamination of 0.05–0.08 sits entirely underneath it, invisible. A
+   correctness-only profile certifies all of these models as saturation-free; they are not.
 
-> ¹ `gemini-2.5-pro` scored correctness ≈ 0 — a measurement artifact (it answered e.g. "10" where
-> the gold token was "ten", which a pure word-match missed). `gpt-5.5-pro` did *not* show this, so
-> it is gemini-specific, not a general reasoning-model effect. The correctness scorer now accepts
-> digit↔word equivalence; gemini should be re-measured before inclusion. Contamination values are
-> small (0.01–0.08) from small n (8 cases): the *trend* is robust and monotone; the absolute
-> numbers are a pilot.
+2. **Within a lineage, more capable ⇒ less contamination and later onset.** Cleanly twice:
+   Granite micro `0.084` → 8B `0.070`; OpenAI gpt-4o `0.053` → gpt-5.5-pro `0.014`. The single
+   most capable model (gpt-5.5-pro) is nearly immune even at full context; opus resists until k=8.
 
-(Dual-instrumented runs, 2026-06-30; granite-micro `28449857165`, granite-4.1-8b `28450473786`,
-opus-4.8 `28450499757`, gpt-5.5-pro `28450507066`, gemini `28450489669`.)
+3. **But it is *not* a clean size law across families.** `llama-3.2-3b` (small) contaminates
+   *little* (0.021) — yet is also unreliably *correct* (0.38–0.75), a different failure mode;
+   `qwen-2.5-7b` sits mid-range and never reaches 0 (echoing DESi's "qwen: none clean"). Absolute
+   contamination is model-specific; "flagship" alone does not guarantee resistance (gpt-4o, an
+   older flagship, is mid-pack at 0.053). The driver is capability/recency, not parameter count
+   or the "flagship" label.
+
+4. **Practical consequence.** The hidden harm is largest for a *weaker model fed more context* —
+   exactly the cost-driven "small model + lots of RAG" configuration — and a correctness-only
+   `k_profile` is blind to it. This **refutes** the naive "more capable / more context → more
+   hidden harm" framing without overclaiming a monotone law.
+
+> ¹ `gemini-2.5-pro` scored correctness ≈ 0 and was **not** rescued by the digit↔word scorer fix
+> — so this is *not* a word/number artifact. It is a content-extraction issue: gemini-2.5-pro via
+> the OpenAI-compatible OpenRouter shim appears to return an empty `message.content` (its output
+> likely sits in a separate reasoning field the adapter does not read). `gpt-5.5-pro` (also a
+> "pro" model) was unaffected, so it is gemini-specific. Excluded pending adapter work; its
+> contamination figure would be meaningless without real answer text. (`llama-3.1-8b` ran but its
+> contamination column was not captured in this pass; omitted.)
+
+(Dual-instrumented runs, 2026-06-30: granite-micro `28449857165`, qwen-7b `28450465796`,
+llama-3.2-3b `28450459011`, granite-4.1-8b `28450473786`, gpt-4o `28451913435`,
+opus-4.8 `28450499757`, gpt-5.5-pro `28450507066`, gemini re-run `28454470603`.)
 
 ## 5. k\* is not a constant (explicit, to avoid the obvious attack)
 
