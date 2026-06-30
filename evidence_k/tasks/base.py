@@ -160,3 +160,14 @@ class Task:
             ),
             constraint_detail=detail,
         )
+
+    def contamination(
+        self, case: Case, answer: str, selected: tuple[Evidence, ...]
+    ) -> dict[str, Any] | None:
+        """Second-axis (contamination) score, or ``None`` for correctness-only tasks.
+
+        Dual-instrumented tasks override this to return ``{"severity": float, "metrics": …}``
+        so the sweep records a contamination value alongside the correctness dimensions for
+        the same response and the same k.
+        """
+        return None

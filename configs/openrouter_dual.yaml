@@ -1,0 +1,32 @@
+# Real-model DUAL-INSTRUMENTED benchmark via OpenRouter.
+# One input, one response, scored on BOTH axes (correctness + contamination) at the same k.
+# The model input is overridden per dispatch by the benchmark workflow (model slate).
+#
+#   export OPENROUTER_API_KEY=sk-or-...
+#   evidence-k run --config configs/openrouter_dual.yaml
+
+model:
+  provider: openai_compatible
+  name: openai/gpt-4o-mini
+  temperature: 0
+  max_tokens: 512
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: OPENROUTER_API_KEY
+
+benchmark:
+  k_values: [0, 1, 2, 3, 5, 8, 13, "full"]
+  repetitions: 2
+  random_seed: 42
+
+tasks:
+  - name: dual_instrumented
+    dataset: data/dual/dual_instrumented.jsonl
+
+scoring:
+  weights:
+    correctness: 0.35
+    grounding: 0.20
+    constraint_adherence: 0.20
+    state_consistency: 0.15
+    hallucination_penalty: 0.10
+    cost_penalty: 0.00

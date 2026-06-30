@@ -20,12 +20,24 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from ..contamination.markers import FRAMEWORK_TERMS
 from ..utils.hashing import seeded_random
 from ..utils.tokens import count_tokens
 from .base import Model, ModelResponse, Prompt
 
 _WORD = re.compile(r"[A-Za-zÀ-ÿ0-9']+")
 _HALLUCINATION_POOL = ["Atlantis", "Xanadu", "Eldorado", "Zubron", "Qarth", "Lemuria"]
+
+
+def _exposed_framework_terms(evidence: list[dict[str, Any]]) -> list[str]:
+    """Framework-register terms present in the selected evidence (in window)."""
+    found: list[str] = []
+    for e in evidence:
+        text = str(e.get("text", "")).lower()
+        for term in FRAMEWORK_TERMS:
+            if term in text and term not in found:
+                found.append(term)
+    return found
 
 
 def _salient_token(text: str, avoid: str) -> str | None:
@@ -64,7 +76,15 @@ class MockModel(Model):
         k_label = meta.get("k", "?")
 
         supporting = [e for e in evidence if str(e.get("label", "")).lower() == "supporting"]
-        distractors = [e for e in evidence if str(e.get("label", "")).lower() != "supporting"]
+        # Only answer-bearing distractors erode correctness. Register/noop fragments are
+        # noise or source-register — they do NOT carry a competing answer, so they must not
+        # reduce p_correct (that is exactly what lets the dual correctness axis stay flat
+        # while the contamination axis bends).
+        distractors = [
+            e
+            for e in evidence
+            if str(e.get("label", "")).lower() not in {"supporting", "register", "noop"}
+        ]
 
         rng = seeded_random(self.seed, meta.get("seed", 0), case_id, k_label, repetition)
 
@@ -90,6 +110,19 @@ class MockModel(Model):
         else:
             answer = rng.choice(_HALLUCINATION_POOL)
             mode = "hallucinated"
+
+        # Dual-instrumented contamination simulation: independent of correctness, the model
+        # may adopt the source's framework register when register-laden fragments are in the
+        # window. More exposure → higher chance of un-quoted echo → higher framing leakage.
+        # This is what makes the contamination axis bend while correctness stays flat.
+        if meta.get("task") == "dual_instrumented":
+            exposed = _exposed_framework_terms(evidence)
+            if exposed and rng.random() < min(0.95, 0.16 * len(exposed)):
+                n_echo = 1 + (rng.random() < 0.5) + (rng.random() < 0.25)
+                echoed = rng.sample(exposed, min(int(n_echo), len(exposed)))
+                # Adopted (un-quoted, no attribution context) so it scores as framing leakage.
+                answer = f"{answer}. We move into {', '.join(echoed)} together."
+                mode = f"{mode}+echo"
 
         prompt_tokens = self._estimate_prompt_tokens(prompt)
         completion_tokens = max(1, count_tokens(answer))
