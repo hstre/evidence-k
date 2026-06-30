@@ -1,0 +1,77 @@
+name: OpenRouter Benchmark
+
+# Manual, opt-in real-model benchmark. Never runs automatically — dispatch it from the
+# Actions tab (or via API). Uses the OPENROUTER_API_KEY repository secret; the key is only
+# ever exposed as an environment variable to the run step and never written to disk.
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "OpenRouter model id"
+        default: "openai/gpt-4o-mini"
+        required: false
+      repetitions:
+        description: "Repetitions per (task, k) — blank uses the config value"
+        default: ""
+        required: false
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Prepare run config
+        env:
+          INPUT_MODEL: ${{ inputs.model }}
+          INPUT_REPS: ${{ inputs.repetitions }}
+        run: |
+          python - <<'PY'
+          import os, yaml
+          cfg = yaml.safe_load(open("configs/openrouter.yaml"))
+          model = os.environ.get("INPUT_MODEL") or cfg["model"]["name"]
+          cfg["model"]["name"] = model
+          reps = os.environ.get("INPUT_REPS")
+          if reps:
+              cfg["benchmark"]["repetitions"] = int(reps)
+          with open("configs/_run.yaml", "w") as fh:
+              yaml.safe_dump(cfg, fh, sort_keys=False)
+          print("model:", cfg["model"]["name"], "repetitions:", cfg["benchmark"]["repetitions"])
+          PY
+
+      - name: Run benchmark
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: evidence-k run --config configs/_run.yaml
+
+      - name: Export profile and write summary
+        run: |
+          RUN_DIR="$(ls -dt runs/*/ | head -1)"
+          echo "RUN_DIR=$RUN_DIR" >> "$GITHUB_ENV"
+          evidence-k export-profile --run-dir "$RUN_DIR" --out k_profile.json
+          {
+            echo '## OpenRouter benchmark summary'
+            echo '```'
+            evidence-k summarize --run-dir "$RUN_DIR"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: k-profile
+          path: |
+            k_profile.json
+            ${{ env.RUN_DIR }}
+          if-no-files-found: error
