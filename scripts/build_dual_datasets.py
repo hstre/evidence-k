@@ -67,32 +67,36 @@ def _interleave(supporting: str) -> list[dict]:
 
 
 def case(cid, question, supporting, expected):
+    # No length constraint: the contamination axis needs free explanatory text. Correctness
+    # is a single-token substring match, robust to the explanation that follows the answer.
     return {
         "id": cid,
         "task": "dual_instrumented",
         "question": question,
         "evidence": _interleave(supporting),
         "expected_answer": expected,
-        "constraints": ["Answer in at most 3 words."],
+        "constraints": [],
     }
 
 
 def build():
+    # Single-token expected answers so the substring match is robust even when the model
+    # adds a one/two-sentence explanation after stating the answer.
     specs = [
-        ("di_001", "How many minutes did participants breathe each morning, per the log?",
+        ("di_001", "How many minutes did participants breathe each morning (in words), per the log?",
          "The log records ten minutes of breathing each morning.", "ten"),
-        ("di_002", "How many people were in the cohort, per the register?",
+        ("di_002", "How many people were in the cohort (in words), per the register?",
          "The register lists twelve people in the cohort.", "twelve"),
-        ("di_003", "What time did the morning session start, per the schedule?",
-         "The schedule states the morning session started at 6 am.", "6 am"),
+        ("di_003", "At what hour did the morning session start (in words), per the schedule?",
+         "The schedule states the morning session started at six.", "six"),
         ("di_004", "Who facilitated the sessions, per the roster?",
          "The roster names Marina as the facilitator.", "Marina"),
-        ("di_005", "How many weeks did the program run, per the syllabus?",
+        ("di_005", "How many weeks did the program run (in words), per the syllabus?",
          "The syllabus says the program ran for eight weeks.", "eight"),
         ("di_006", "What beverage was served, per the catering note?",
          "The catering note records that tea was served.", "tea"),
-        ("di_007", "Which room was used, per the booking?",
-         "The booking shows Room 3 was used.", "Room 3"),
+        ("di_007", "Which room number was used (in words), per the booking?",
+         "The booking shows room three was used.", "three"),
         ("di_008", "On which weekday were sessions held, per the calendar?",
          "The calendar marks sessions on Tuesday.", "Tuesday"),
     ]
