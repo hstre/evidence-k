@@ -38,18 +38,48 @@ def content_tokens(text: str) -> list[str]:
     return [t for t in tokenize(text) if t not in _STOPWORDS]
 
 
+_NUMBER_WORDS = {
+    "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
+    "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10", "eleven": "11",
+    "twelve": "12", "thirteen": "13", "fourteen": "14", "fifteen": "15", "sixteen": "16",
+    "seventeen": "17", "eighteen": "18", "nineteen": "19", "twenty": "20",
+}
+_DIGIT_WORDS = {v: k for k, v in _NUMBER_WORDS.items()}
+
+
+def _expected_variants(ne: str) -> set[str]:
+    """Acceptable surface forms of the expected answer (digit <-> word equivalence).
+
+    Reasoning/flagship models often answer "10" where the gold is "ten" (or vice versa).
+    Treating those as equivalent stops a pure word-match from systematically marking such
+    models wrong — the gemini-2.5-pro failure mode in the dual-axis run.
+    """
+    variants = {ne}
+    if ne in _NUMBER_WORDS:
+        variants.add(_NUMBER_WORDS[ne])
+    if ne in _DIGIT_WORDS:
+        variants.add(_DIGIT_WORDS[ne])
+    return variants
+
+
 def score_correctness(answer: str, expected: str | None) -> float:
-    """1.0 if the normalized expected answer is present in the normalized answer."""
+    """1.0 if any accepted form of the expected answer is present in the answer.
+
+    Tolerates (a) the answer appearing anywhere in longer prose (token-boundary match) and
+    (b) digit<->word equivalence for numbers, so verbose/reasoning models are scored fairly.
+    """
     if not expected:
         return 1.0  # nothing to check against
     na = normalize_text(answer)
     ne = normalize_text(expected)
     if not ne:
         return 1.0
-    if na == ne:
-        return 1.0
-    # token-boundary substring match so "paris" matches "the answer is paris"
-    return 1.0 if re.search(rf"(?:^| ){re.escape(ne)}(?: |$)", na) else 0.0
+    for variant in _expected_variants(ne):
+        if na == variant:
+            return 1.0
+        if re.search(rf"(?:^| ){re.escape(variant)}(?: |$)", na):
+            return 1.0
+    return 0.0
 
 
 def score_grounding(answer: str, evidence_texts: Sequence[str]) -> float:

@@ -123,6 +123,46 @@ strong models — it tells a router "k high is fine" while the contamination axi
 "k=3." Profiles must carry a contamination/drift axis or they calibrate on the axis that happens
 to see nothing.
 
+### 4d. Dual-instrumented, cross-model (the strongest evidence)
+
+§4a–4c compare two *separate* harnesses on one model, which leaves a task confound. The
+**dual-instrumented** benchmark removes it: one input, one response, scored on *both* axes at the
+same k. Each case embeds a single-token factual answer inside register-laden source prose, and
+asks the model to describe the practice and state the fact — so engaging the manipulative framing
+is unavoidable and any adoption is observable. Correctness and contamination (vendored DESi
+framing-leakage heuristics, normalised to a `[0,1]` severity) are read off the *same* answer.
+
+Run across the model size spectrum via OpenRouter (`configs/openrouter_dual.yaml`, repetitions 2;
+correctness is flat `1.000` at every k≥1 for all valid models):
+
+| model | class | max contamination | onset k | blind-spot severity |
+|---|---|---|---|---|
+| `ibm-granite/granite-4.0-h-micro` | small | **0.084** | k=1 | 0.056 |
+| `ibm-granite/granite-4.1-8b` | mid | **0.070** | k=1 | ~0.060 |
+| `anthropic/claude-opus-4.8` | flagship | **0.049** | k=8 | 0.018 |
+| `openai/gpt-5.5-pro` | flagship (largest) | **0.014** | trace, then ~0 | ~0.000 |
+| `google/gemini-2.5-pro` | flagship | — | — | excluded: scoring artifact¹ |
+
+**Contamination susceptibility decreases monotonically with model capability** (0.084 → 0.070 →
+0.049 → 0.014), and its **onset k moves later** (k=1 for small/mid; k=8 for opus; effectively
+never for gpt-5.5-pro). Meanwhile correctness is a flat `1.000` everywhere and sees none of it —
+the blind axis, now demonstrated cross-model on one shared input/k.
+
+This **refutes** the intuitive "more capable / more context → more hidden harm" framing. The harm
+concentrates exactly where cost-conscious deployment points: **a small model fed a lot of
+context.** The strongest model is nearly immune even at full context; the weakest contaminates
+from the first fragment.
+
+> ¹ `gemini-2.5-pro` scored correctness ≈ 0 — a measurement artifact (it answered e.g. "10" where
+> the gold token was "ten", which a pure word-match missed). `gpt-5.5-pro` did *not* show this, so
+> it is gemini-specific, not a general reasoning-model effect. The correctness scorer now accepts
+> digit↔word equivalence; gemini should be re-measured before inclusion. Contamination values are
+> small (0.01–0.08) from small n (8 cases): the *trend* is robust and monotone; the absolute
+> numbers are a pilot.
+
+(Dual-instrumented runs, 2026-06-30; granite-micro `28449857165`, granite-4.1-8b `28450473786`,
+opus-4.8 `28450499757`, gpt-5.5-pro `28450507066`, gemini `28450489669`.)
+
 ## 5. k\* is not a constant (explicit, to avoid the obvious attack)
 
 ```
