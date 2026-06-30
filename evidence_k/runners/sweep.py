@@ -94,6 +94,9 @@ def run_sweep(
                 for rep in range(config.benchmark.repetitions):
                     resp = mdl.generate(prompt, repetition=rep)
                     ev = evaluate_answer(task, case, resp.text, selected)
+                    # Second axis (None for correctness-only tasks).
+                    cont = task.contamination(case, resp.text, selected)
+                    cont_sev = cont["severity"] if cont else None
 
                     result.raw_records.append(
                         {
@@ -108,6 +111,7 @@ def run_sweep(
                             "latency_s": resp.latency_s,
                             "n_evidence": len(selected),
                             "mode": resp.raw.get("mode"),
+                            "contamination": cont_sev,
                         }
                     )
                     result.score_records.append(
@@ -118,6 +122,7 @@ def run_sweep(
                             "repetition": rep,
                             "total_tokens": resp.total_tokens,
                             "latency_s": resp.latency_s,
+                            "contamination": cont_sev,
                             **{d: ev.dimensions[d] for d in _DIMENSIONS},
                         }
                     )
@@ -166,6 +171,10 @@ def _finalise(result: SweepResult) -> None:
             }
             for d in _DIMENSIONS:
                 metrics[d] = round(statistics.fmean(r[d] for r in recs), 6)
+            # Second axis: mean contamination severity, if this task scores it.
+            cont_vals = [r["contamination"] for r in recs if r.get("contamination") is not None]
+            if cont_vals:
+                metrics["contamination"] = round(statistics.fmean(cont_vals), 6)
             result.aggregates[task_name][kl] = metrics
 
     # Per-task recommendation: argmax reliability, tie-break toward the smaller k.

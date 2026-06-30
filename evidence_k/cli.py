@@ -135,6 +135,11 @@ def _print_summary(summary: dict[str, Any]) -> None:
                   f"{m['answer_variance']:>6.3f}")
     gr = summary.get("global_recommendation", {})
     print(f"\n  Global default_k = {gr.get('default_k')} — {gr.get('notes', '')}")
+    dual = summary.get("dual")
+    if dual:
+        from .outputs.dual_report import format_dual_report
+
+        print(format_dual_report(dual))
 
 
 # --- parser ------------------------------------------------------------------------------

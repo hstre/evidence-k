@@ -1,0 +1,26 @@
+# Offline dual-instrumented benchmark (MockModel) — validates the two-axis pipeline.
+# Correctness axis + contamination axis on the same input and the same k.
+
+model:
+  provider: mock
+  name: mock-model
+  temperature: 0
+  max_tokens: 512
+
+benchmark:
+  k_values: [0, 1, 2, 3, 5, 8, 13, "full"]
+  repetitions: 3
+  random_seed: 42
+
+tasks:
+  - name: dual_instrumented
+    dataset: data/dual/dual_instrumented.jsonl
+
+scoring:
+  weights:
+    correctness: 0.35
+    grounding: 0.20
+    constraint_adherence: 0.20
+    state_consistency: 0.15
+    hallucination_penalty: 0.10
+    cost_penalty: 0.00

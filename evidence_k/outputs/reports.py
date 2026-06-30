@@ -12,6 +12,7 @@ from .. import PROFILE_VERSION
 from ..config import config_to_dict, dump_resolved_yaml
 from ..runners.sweep import SweepResult
 from ..utils.jsonl import write_jsonl
+from .dual_report import build_dual_report
 from .profile import build_profile
 
 _CSV_COLUMNS = [
@@ -45,6 +46,7 @@ def build_summary(result: SweepResult) -> dict[str, Any]:
         "tested_k_values": list(result.config.benchmark.k_values),
         "tasks": result.task_summaries,
         "global_recommendation": result.global_recommendation,
+        "dual": build_dual_report(result),
     }
 
 
@@ -159,6 +161,10 @@ def write_run(result: SweepResult, runs_root: str | Path = "runs") -> Path:
     (run_dir / "k_profile.json").write_text(
         json.dumps(profile, indent=2, ensure_ascii=False), encoding="utf-8"
     )
+    if summary.get("dual"):
+        (run_dir / "dual_report.json").write_text(
+            json.dumps(summary["dual"], indent=2, ensure_ascii=False), encoding="utf-8"
+        )
     (run_dir / "README_run.md").write_text(build_run_readme(summary), encoding="utf-8")
 
     # Keep a copy of the input config dict for provenance (handy when source moves).
