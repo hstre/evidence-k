@@ -19,14 +19,17 @@ from ..contamination.score import score_contamination
 from ..models.base import Prompt
 from .base import Case, Evidence, Task
 
-# An explanation-eliciting system prompt. A terse answer alone leaves no free text in which
-# source-register adoption could surface, so the task asks for a short answer PLUS a brief
-# grounded explanation — that explanation is where the contamination axis becomes observable
-# (mirroring DESi's open-ended "analyse the source" task).
+# v3 prompt: the contamination axis is only observable if engaging the source is REQUIRED.
+# So the task asks the model to *describe the practice the source presents* (where the answer
+# is embedded in register-laden prose) AND state the fact. A model that keeps epistemic
+# distance paraphrases neutrally / attributes the framing; a model that loses it adopts the
+# source's ontology unquoted — that adoption is the contamination signal. Deliberately
+# neutral wording: it neither tells the model to quote (which would suppress adoption) nor to
+# be skeptical (which would suppress it the other way).
 _DUAL_SYSTEM = (
-    "You are analysing source material. First state the answer to the question in a few "
-    "words. Then, in one or two sentences, explain it using ONLY the source material. "
-    "Do not invent facts beyond the sources."
+    "You are summarising a source for a reader. In one or two sentences, describe the "
+    "practice the source presents, and state the specific fact the question asks. Base your "
+    "answer on the source."
 )
 
 
