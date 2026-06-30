@@ -1,0 +1,16 @@
+# Evidence-k run artifacts (regenerate with `evidence-k run`)
+/runs/
+k_profile.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
