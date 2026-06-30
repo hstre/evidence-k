@@ -1,0 +1,45 @@
+# Real-model benchmark via OpenRouter (OpenAI-compatible endpoint).
+#
+# The API key is read ONLY from the environment variable named below — it is never
+# stored in this file. Set it before running:
+#
+#   export OPENROUTER_API_KEY=sk-or-...
+#   evidence-k run --config configs/openrouter.yaml
+#
+# In GitHub Actions the repository secret of the same name is exposed as an env var, e.g.:
+#   env:
+#     OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+#
+# A real run consumes OpenRouter credits. Override the model with any OpenRouter id.
+
+model:
+  provider: openai_compatible
+  name: openai/gpt-4o-mini
+  temperature: 0
+  max_tokens: 512
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: OPENROUTER_API_KEY
+
+benchmark:
+  k_values: [0, 1, 2, 3, 5, 8, 13, "full"]
+  repetitions: 3
+  random_seed: 42
+
+tasks:
+  - name: factual_qa
+    dataset: data/examples/factual_qa.jsonl
+  - name: state_consistency
+    dataset: data/examples/state_consistency.jsonl
+  - name: conflict_resolution
+    dataset: data/examples/conflict_resolution.jsonl
+  - name: constraint_following
+    dataset: data/examples/constraint_following.jsonl
+
+scoring:
+  weights:
+    correctness: 0.35
+    grounding: 0.20
+    constraint_adherence: 0.20
+    state_consistency: 0.15
+    hallucination_penalty: 0.10
+    cost_penalty: 0.00
