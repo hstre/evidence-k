@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evidence-k"
+version = "0.1.0"
+description = "Measure how much evidence an LLM can use before context turns into noise."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+authors = [{ name = "Steffen Rentschler" }]
+keywords = ["llm", "evidence", "rag", "context", "benchmark", "calibration"]
+dependencies = [
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+evidence-k = "evidence_k.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/hstre/evidence-k"
+
+[tool.setuptools.packages.find]
+include = ["evidence_k*"]
+
+[tool.setuptools.package-data]
+evidence_k = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,70 @@
+{
+  "profile_version": "0.1",
+  "model": "mock-model",
+  "provider": "mock",
+  "created_at": "2026-06-30T00:00:00+00:00",
+  "tested_k_values": [0, 1, 2, 3, 5, 8, 13, "full"],
+  "tasks": {
+    "factual_qa": {
+      "recommended_k": 3,
+      "best_score": 0.91,
+      "score_curve": {
+        "0": 0.42,
+        "1": 0.71,
+        "2": 0.86,
+        "3": 0.91,
+        "5": 0.89,
+        "8": 0.82,
+        "13": 0.74,
+        "full": 0.68
+      }
+    },
+    "state_consistency": {
+      "recommended_k": 2,
+      "best_score": 0.84,
+      "score_curve": {
+        "0": 0.30,
+        "1": 0.77,
+        "2": 0.84,
+        "3": 0.80,
+        "5": 0.70,
+        "8": 0.62,
+        "13": 0.45,
+        "full": 0.46
+      }
+    },
+    "conflict_resolution": {
+      "recommended_k": 3,
+      "best_score": 0.85,
+      "score_curve": {
+        "0": 0.46,
+        "1": 0.81,
+        "2": 0.76,
+        "3": 0.85,
+        "5": 0.83,
+        "8": 0.81,
+        "13": 0.57,
+        "full": 0.67
+      }
+    },
+    "constraint_following": {
+      "recommended_k": 3,
+      "best_score": 0.86,
+      "score_curve": {
+        "0": 0.31,
+        "1": 0.71,
+        "2": 0.77,
+        "3": 0.86,
+        "5": 0.73,
+        "8": 0.66,
+        "13": 0.60,
+        "full": 0.52
+      }
+    }
+  },
+  "global_recommendation": {
+    "default_k": 3,
+    "notes": "Use task-specific k where available; k* is model- and task-specific."
+  },
+  "_consumer_note": "How a router/governance layer (e.g. DESi) reads this: look up tasks[<task>].recommended_k to budget how many evidence fragments / state slices to inject for that task; fall back to global_recommendation.default_k when the task is unknown. This field is illustrative only and is not emitted by Evidence-k."
+}
