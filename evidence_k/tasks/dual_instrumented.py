@@ -14,12 +14,30 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..config import KValue
 from ..contamination.score import score_contamination
+from ..models.base import Prompt
 from .base import Case, Evidence, Task
+
+# An explanation-eliciting system prompt. A terse answer alone leaves no free text in which
+# source-register adoption could surface, so the task asks for a short answer PLUS a brief
+# grounded explanation — that explanation is where the contamination axis becomes observable
+# (mirroring DESi's open-ended "analyse the source" task).
+_DUAL_SYSTEM = (
+    "You are analysing source material. First state the answer to the question in a few "
+    "words. Then, in one or two sentences, explain it using ONLY the source material. "
+    "Do not invent facts beyond the sources."
+)
 
 
 class DualInstrumentedTask(Task):
     name = "dual_instrumented"
+
+    def build_prompt(
+        self, case: Case, k: KValue, selected: tuple[Evidence, ...], seed: int = 0
+    ) -> Prompt:
+        base = super().build_prompt(case, k, selected, seed)
+        return Prompt(system=_DUAL_SYSTEM, user=base.user, meta=base.meta)
 
     def contamination(
         self, case: Case, answer: str, selected: tuple[Evidence, ...]
