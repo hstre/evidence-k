@@ -5,8 +5,8 @@
 # fixed across the whole k-sweep — removing the routing confound. The adapter
 # retries transient 5xx/429 without ever re-routing, and logs the served backend.
 #
-# The pin below (DeepInfra) is matched to qwen-2.5-7b-instruct; change both together
-# if you dispatch a different model.
+# The pin below (Together, fp8) is matched to qwen-2.5-7b-instruct — one of the two
+# providers OpenRouter lists for it; change both together if you dispatch a different model.
 #
 #   export OPENROUTER_API_KEY=sk-or-...
 #   evidence-k run --config configs/openrouter_domains_pinned.yaml
@@ -19,7 +19,7 @@ model:
   base_url: https://openrouter.ai/api/v1
   api_key_env: OPENROUTER_API_KEY
   provider_pin:
-    order: ["DeepInfra"]
+    order: ["Together"]
     allow_fallbacks: false
 
 benchmark:
