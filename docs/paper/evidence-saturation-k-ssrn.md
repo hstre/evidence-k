@@ -339,7 +339,9 @@ treating `(model, served backend)` as the unit. Where the served instance cannot
 trusted, cryptographic attestation of the model, policy and runtime configuration (MIVP;
 Rentschler, 2026a) is what makes silent model substitution, routing and quantization changes
 *detectable in the first place* — a prerequisite for any k\* number to be attributable to a known
-instance. (4) **One excluded model** (gemini, extraction artefact). (5) **Cross-corpus
+instance. The reference implementation now supports provider pinning (order + no fallbacks),
+per-call served-backend logging, and retry that never re-routes, so a pinned sweep provably stays
+on one backend. (4) **One excluded model** (gemini, extraction artefact). (5) **Cross-corpus
 comparison**: the esoteric-vs-credible contrast in §7.2 mixes corpora; a matched within-corpus
 esoteric density sweep on the same harness is the clean next experiment. (6) **Scale of k**: to
 locate saturation for the largest models one needs cases with tens of genuinely decision-relevant
@@ -353,9 +355,12 @@ should not be assumed to transfer across domains. As a first signal, a rough pro
 models (`granite-4.0-h-micro`, `qwen-2.5-7b`) over four domains — technical / medical / legal /
 finance, identical adversarial structure — returned k\* = 1 in *every* domain, with correctness
 saturating at k = 1: no domain-driven shift here, but the cases proved easy enough that this is a
-floor, not a stress test (and the runs were provider-unpinned per (3); two further small-model
-runs aborted on transient provider errors with no adapter retry — itself a small instance of that
-fragility). Clean per-domain,
+floor, not a stress test. The runs were initially provider-unpinned (per (3); two further
+small-model runs even aborted on transient provider errors); a **provider-pinned** re-run
+(qwen-2.5-7b served by Together at fp8, verified via served-backend logging, with
+retry-without-reroute) reproduced k\* = 1 in every domain — so here the result was
+provider-invariant, and the tool now carries the pinning needed to keep it that way. Clean
+per-domain,
 per-backend calibration over an *attested* instance is the deployment-time measurement this leaves
 open. The natural extensions are a high-fragment dataset (k up to ~89), a task battery (multi-hop,
 state consistency, conflict resolution, constraint following), provider-pinned re-runs, and
