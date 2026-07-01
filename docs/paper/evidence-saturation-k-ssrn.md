@@ -85,10 +85,11 @@ retrieved chunks is standard (Lewis et al., 2020) and increasingly adaptive (Asa
 al., 2023). Our k\* is *not* retriever top-k: k here is the empirically optimal number of
 decision-relevant fragments for a model under a defined task and output contract, measured
 against a reliability objective, not a retriever's similarity score. Inference-time-control
-proposals argue that context should be made relevant and bounded but do not supply a *quantity*
-to calibrate; k\* is intended as exactly that missing calibration quantity, and this paper adds
-the demonstration that the quantity is axis-dependent. A distinct prerequisite — knowing *which*
-model instance actually served a request — is addressed by cryptographic attestation (§9).
+proposals argue that context should be made relevant and bounded (Figueiredo & Franceschi, 2026)
+but do not supply a *quantity* to calibrate; k\* is intended as exactly that missing calibration
+quantity, and this paper adds pilot evidence that the quantity is axis-dependent. For deployment,
+k\* is only attributable if the served model instance is known; we treat provider pinning and
+attestation as a reproducibility caveat in §9.
 
 ## 3. Defining k\*
 
@@ -253,9 +254,9 @@ with less contamination and later onset** in both lineages we could compare: Gra
 lowest contamination even at full context; opus's onset came only at k = 8. **(b) It is not a
 clean size law across families**: `llama-3.2-3b` (small)
 contaminates little (0.021) yet is unreliably *correct* (0.38–0.75) — a different failure
-mode — and `qwen-2.5-7b` never reaches zero. The driver is capability and recency, not
-parameter count or a "flagship" label (`gpt-4o`, an older large model, is mid-pack at
-0.053).
+mode — and `qwen-2.5-7b` never reaches zero. The observed pattern is more consistent with
+capability and model recency than with parameter count alone or a "flagship" label
+(`gpt-4o`, an older large model, is mid-pack at 0.053).
 
 ### 7.2 A credible register does not overturn the capability ordering
 
@@ -294,7 +295,7 @@ avoid conflating the two.
 
 **Table 3. A representative density sweep (llama-3.1-8b, credible corpus, leakage/3 cases).**
 
-| state density k | baseline | 1 | 3 | 5 | 8 |
+| state-density k | baseline | 1 | 3 | 5 | 8 |
 |---|---|---|---|---|---|
 | framing leakage | 6.0 | 5.0 | **2.0** | 2.0 | 3.0 |
 
@@ -303,8 +304,9 @@ avoid conflating the two.
 We resist the word "immune". `claude-opus-4.8` is not categorically resistant — it does bend
 (onset at k = 8 in Table 1). The threshold simply sits higher for more capable models, and
 for `gpt-5.5-pro` none of the levers we varied (raw volume, state density, register
-credibility) crossed it. Two of these levers are provably the wrong tools (density is
-non-monotone; register credibility does not sharpen the strong model), and the one lever
+credibility) crossed it. In these runs, two of these levers were poor tools for crossing the
+threshold (density is non-monotone; register credibility did not sharpen the strong model),
+and the one lever
 that has been observed to move a strong model in the broader literature — multi-turn
 adversarial accumulation with persona pressure — is deliberately outside this study's scope.
 We therefore report a **capability-gated threshold**, not proven immunity, and note that
@@ -337,11 +339,10 @@ it should be read as a property of `(model, served backend, task, axis)`. Contro
 requires pinning the provider (order + no fallbacks) and logging the served backend per call, and
 treating `(model, served backend)` as the unit. Where the served instance cannot simply be
 trusted, cryptographic attestation of the model, policy and runtime configuration (MIVP;
-Rentschler, 2026a) is what makes silent model substitution, routing and quantization changes
-*detectable in the first place* — a prerequisite for any k\* number to be attributable to a known
-instance. The reference implementation now supports provider pinning (order + no fallbacks),
-per-call served-backend logging, and retry that never re-routes, so a pinned sweep provably stays
-on one backend. (4) **One excluded model** (gemini, extraction artefact). (5) **Cross-corpus
+Rentschler, 2026a) can make silent model substitution, routing and quantization changes
+detectable — a reproducibility prerequisite for attributing a k\* number to a known instance.
+The reference implementation now supports provider pinning (order + no fallbacks), per-call
+served-backend logging, and retry that never re-routes, so a pinned sweep stays on one backend. (4) **One excluded model** (gemini, extraction artefact). (5) **Cross-corpus
 comparison**: the esoteric-vs-credible contrast in §7.2 mixes corpora; a matched within-corpus
 esoteric density sweep on the same harness is the clean next experiment. (6) **Scale of k**: to
 locate saturation for the largest models one needs cases with tens of genuinely decision-relevant
@@ -354,7 +355,7 @@ may not even satisfy the "independent top-k fragment" assumption of §3, so a si
 should not be assumed to transfer across domains. As a first signal, a rough probe on two small
 models (`granite-4.0-h-micro`, `qwen-2.5-7b`) over four domains — technical / medical / legal /
 finance, identical adversarial structure — returned k\* = 1 in *every* domain, with correctness
-saturating at k = 1: no domain-driven shift here, but the cases proved easy enough that this is a
+saturating at k = 1: no domain-driven shift here, but the cases were easy enough that this is a
 floor, not a stress test. The runs were initially provider-unpinned (per (3); two further
 small-model runs even aborted on transient provider errors); a **provider-pinned** re-run
 (qwen-2.5-7b served by Together at fp8, verified via served-backend logging, with
@@ -383,6 +384,8 @@ of the most.
 
 - Asai, A., Wu, Z., Wang, Y., et al. (2023). *Self-RAG: Learning to Retrieve, Generate, and
   Critique through Self-Reflection.* arXiv:2310.11511.
+- Figueiredo, V., & Franceschi, W. (2026). *Inference-Time Control is the Missing Layer in LLM
+  Reliability.* Position paper / preprint.
 - Lewis, P., Perez, E., Piktus, A., et al. (2020). *Retrieval-Augmented Generation for
   Knowledge-Intensive NLP Tasks.* Advances in Neural Information Processing Systems 33.
 - Liu, N. F., Lin, K., Hewitt, J., et al. (2023). *Lost in the Middle: How Language Models

@@ -114,10 +114,11 @@ turn toward augmented, tool- and context-managed models (Mialon et al., 2023). O
 <i>not</i> retriever top-k: k here is the empirically optimal number of decision-relevant
 fragments for a model under a defined task and output contract, measured against a reliability
 objective, not a retriever's similarity score. Inference-time-control proposals argue that context
-should be made relevant and bounded but do not supply a <i>quantity</i> to calibrate; k* is
-intended as exactly that missing calibration quantity, and this paper adds the demonstration that
-the quantity is axis-dependent. A distinct prerequisite — knowing <i>which</i> model instance
-actually served a request — is addressed by cryptographic attestation (§9).</p>
+should be made relevant and bounded (Figueiredo &amp; Franceschi, 2026) but do not supply a
+<i>quantity</i> to calibrate; k* is intended as exactly that missing calibration quantity, and
+this paper adds pilot evidence that the quantity is axis-dependent. For deployment, k* is only
+attributable if the served model instance is known; we treat provider pinning and attestation as
+a reproducibility caveat in §9.</p>
 
 <h2>3. Defining k*</h2>
 <p>Let a task instance carry an ordered pool of candidate evidence fragments. For a budget
@@ -254,9 +255,9 @@ with less contamination and later onset</b> in both lineages we could compare: G
 lowest contamination even at full context; opus's onset came only at k&nbsp;=&nbsp;8. <b>(b) It
 is not a clean size law across families</b>: <code>llama-3.2-3b</code>
 (small) contaminates little (0.021) yet is unreliably <i>correct</i> (0.38–0.75) — a different
-failure mode — and <code>qwen-2.5-7b</code> never reaches zero. The driver is capability and
-recency, not parameter count or a "flagship" label (<code>gpt-4o</code>, an older large model,
-is mid-pack at 0.053).</p>
+failure mode — and <code>qwen-2.5-7b</code> never reaches zero. The observed pattern is more
+consistent with capability and model recency than with parameter count alone or a "flagship"
+label (<code>gpt-4o</code>, an older large model, is mid-pack at 0.053).</p>
 
 <h3>7.2 A credible register does not overturn the capability ordering</h3>
 <p>On the credible professional corpus (extended protocol, framing-leakage counts summed over
@@ -292,7 +293,7 @@ parameter used to probe state hygiene, and we keep the terms separate to avoid c
 two.</p>
 <table>
 <caption>Table 3. A representative density sweep (llama-3.1-8b, credible corpus, leakage / 3 cases).</caption>
-<thead><tr><th>state density k</th><th>baseline</th><th>1</th><th>3</th><th>5</th><th>8</th></tr></thead>
+<thead><tr><th>state-density k</th><th>baseline</th><th>1</th><th>3</th><th>5</th><th>8</th></tr></thead>
 <tbody>
 <tr><td>framing leakage</td><td>6.0</td><td>5.0</td><td><b>2.0</b></td><td>2.0</td><td>3.0</td></tr>
 </tbody>
@@ -302,8 +303,9 @@ two.</p>
 <p>We resist the word "immune". <code>claude-opus-4.8</code> is not categorically resistant — it
 does bend (onset at k&nbsp;=&nbsp;8 in Table 1). The threshold simply sits higher for more
 capable models, and for <code>gpt-5.5-pro</code> none of the levers we varied (raw volume, state
-density, register credibility) crossed it. Two of these levers are provably the wrong tools
-(density is non-monotone; register credibility does not sharpen the strong model), and the one
+density, register credibility) crossed it. In these runs, two of these levers were poor tools for
+crossing the threshold (density is non-monotone; register credibility did not sharpen the strong
+model), and the one
 lever observed to move a strong model in the broader literature — multi-turn adversarial
 accumulation with persona pressure — is deliberately outside this study's scope. We therefore
 report a <b>capability-gated threshold</b>, not proven immunity, and note that chasing that
@@ -334,11 +336,11 @@ shown to be provider-invariant; it should be read as a property of (model, serve
 axis). Controlled calibration requires pinning the provider (order + no fallbacks) and logging
 the served backend per call, and treating (model, served backend) as the unit. Where the served
 instance cannot simply be trusted, cryptographic attestation of the model, policy and runtime
-configuration (MIVP; Rentschler, 2026a) is what makes silent model substitution, routing and
-quantization changes <i>detectable in the first place</i> — a prerequisite for any k* number to
-be attributable to a known instance. The reference implementation now supports provider pinning
-(order + no fallbacks), per-call served-backend logging, and retry that never re-routes, so a
-pinned sweep provably stays on one backend. (4)&nbsp;<b>One excluded model</b>
+configuration (MIVP; Rentschler, 2026a) can make silent model substitution, routing and
+quantization changes detectable — a reproducibility prerequisite for attributing a k* number to
+a known instance. The reference implementation now supports provider pinning (order + no
+fallbacks), per-call served-backend logging, and retry that never re-routes, so a pinned sweep
+stays on one backend. (4)&nbsp;<b>One excluded model</b>
 (gemini, extraction artefact). (5)&nbsp;<b>Cross-corpus comparison</b>: the esoteric-vs-credible
 contrast in §7.2 mixes corpora; a matched within-corpus esoteric density sweep on the same
 harness is the clean next experiment. (6)&nbsp;<b>Scale of k</b>: to locate saturation for the
@@ -352,7 +354,7 @@ may not even satisfy the "independent top-k fragment" assumption of §3, so a si
 should not be assumed to transfer across domains. As a first signal, a rough probe on two small
 models (<code>granite-4.0-h-micro</code>, <code>qwen-2.5-7b</code>) over four domains — technical
 / medical / legal / finance, identical adversarial structure — returned k* = 1 in <i>every</i>
-domain, with correctness saturating at k = 1: no domain-driven shift here, but the cases proved
+domain, with correctness saturating at k = 1: no domain-driven shift here, but the cases were
 easy enough that this is a floor, not a stress test. The runs were initially provider-unpinned
 (per (3); two further small-model runs even aborted on transient provider errors); a
 <b>provider-pinned</b> re-run (qwen-2.5-7b served by Together at fp8, verified via served-backend
@@ -377,6 +379,8 @@ lets routers and governance layers inject the right amount of context instead of
 <ol class="refs">
 <li>Asai, A., Wu, Z., Wang, Y., et&nbsp;al. (2023). <i>Self-RAG: Learning to Retrieve, Generate,
 and Critique through Self-Reflection.</i> arXiv:2310.11511.</li>
+<li>Figueiredo, V., &amp; Franceschi, W. (2026). <i>Inference-Time Control is the Missing Layer in
+LLM Reliability.</i> Position paper / preprint.</li>
 <li>Lewis, P., Perez, E., Piktus, A., et&nbsp;al. (2020). <i>Retrieval-Augmented Generation for
 Knowledge-Intensive NLP Tasks.</i> Advances in Neural Information Processing Systems 33.</li>
 <li>Liu, N.&nbsp;F., Lin, K., Hewitt, J., et&nbsp;al. (2023). <i>Lost in the Middle: How Language
