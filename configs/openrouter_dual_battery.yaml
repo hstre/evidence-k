@@ -1,0 +1,43 @@
+# Dual-instrumented TASK BATTERY via OpenRouter — both axes across five task TYPES.
+#
+# Varies the task type (factual / multi-hop / state / conflict / constraint) while holding
+# the contamination surface constant, so a k-sweep shows whether k* moves with task type.
+# The model is overridden per dispatch; the served provider is pinned per dispatch via the
+# workflow's `provider` input (adapter logs the served backend either way).
+#
+#   export OPENROUTER_API_KEY=sk-or-...
+#   evidence-k run --config configs/openrouter_dual_battery.yaml
+
+model:
+  provider: openai_compatible
+  name: qwen/qwen-2.5-7b-instruct
+  temperature: 0
+  max_tokens: 512
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: OPENROUTER_API_KEY
+
+benchmark:
+  k_values: [0, 1, 2, 3, 5, 8, 13, "full"]
+  repetitions: 2
+  random_seed: 42
+
+tasks:
+  - name: dual_factual
+    dataset: data/dual_battery/factual.jsonl
+  - name: dual_multihop
+    dataset: data/dual_battery/multihop.jsonl
+  - name: dual_state
+    dataset: data/dual_battery/state.jsonl
+  - name: dual_conflict
+    dataset: data/dual_battery/conflict.jsonl
+  - name: dual_constraint
+    dataset: data/dual_battery/constraint.jsonl
+
+scoring:
+  weights:
+    correctness: 0.35
+    grounding: 0.20
+    constraint_adherence: 0.20
+    state_consistency: 0.15
+    hallucination_penalty: 0.10
+    cost_penalty: 0.00

@@ -19,6 +19,10 @@ on:
         description: "Repetitions per (task, k) — blank uses the config value"
         default: ""
         required: false
+      provider:
+        description: "OpenRouter provider to pin (order, no fallbacks) — blank = unpinned"
+        default: ""
+        required: false
 
 jobs:
   benchmark:
@@ -41,6 +45,7 @@ jobs:
           INPUT_CONFIG: ${{ inputs.config }}
           INPUT_MODEL: ${{ inputs.model }}
           INPUT_REPS: ${{ inputs.repetitions }}
+          INPUT_PROVIDER: ${{ inputs.provider }}
         run: |
           python - <<'PY'
           import os, yaml
@@ -51,9 +56,13 @@ jobs:
           reps = os.environ.get("INPUT_REPS")
           if reps:
               cfg["benchmark"]["repetitions"] = int(reps)
+          provider = (os.environ.get("INPUT_PROVIDER") or "").strip()
+          if provider:
+              cfg["model"]["provider_pin"] = {"order": [provider], "allow_fallbacks": False}
           with open("configs/_run.yaml", "w") as fh:
               yaml.safe_dump(cfg, fh, sort_keys=False)
-          print("model:", cfg["model"]["name"], "repetitions:", cfg["benchmark"]["repetitions"])
+          print("model:", cfg["model"]["name"], "repetitions:", cfg["benchmark"]["repetitions"],
+                "provider_pin:", cfg["model"].get("provider_pin"))
           PY
 
       - name: Run benchmark

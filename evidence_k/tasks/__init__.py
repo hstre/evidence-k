@@ -11,6 +11,13 @@ from .domain_probe import (
     MedicalQATask,
     TechnicalQATask,
 )
+from .dual_battery import (
+    DualConflictTask,
+    DualConstraintTask,
+    DualFactualTask,
+    DualMultihopTask,
+    DualStateTask,
+)
 from .dual_instrumented import DualInstrumentedTask
 from .factual_qa import FactualQATask
 from .state_consistency import StateConsistencyTask
@@ -25,6 +32,11 @@ _REGISTRY: dict[str, type[Task]] = {
     MedicalQATask.name: MedicalQATask,
     LegalQATask.name: LegalQATask,
     FinanceQATask.name: FinanceQATask,
+    DualFactualTask.name: DualFactualTask,
+    DualMultihopTask.name: DualMultihopTask,
+    DualStateTask.name: DualStateTask,
+    DualConflictTask.name: DualConflictTask,
+    DualConstraintTask.name: DualConstraintTask,
 }
 
 __all__ = [
