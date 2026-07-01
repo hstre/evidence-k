@@ -339,7 +339,7 @@ register, single-token answers), provider-pinned, both axes scored, over seven m
 contamination surface fixed while varying only the task type isolates whether the
 evidence-saturation point is a property of the task, not just the model.
 
-It is. The correctness-optimal k is **task- and model-specific and spans the whole ladder**: for a
+The first task-battery results support this. The correctness-optimal k is **task- and model-specific and spans the whole ladder**: for a
 fixed model it ranges from k = 1 to k = full across the five task types, and no single k is optimal
 across tasks for any model (Table 4). A profile calibrated on factual recall does not transfer to
 conflict-resolution even for a fixed model — the router primitive of §7–§8 must be measured per
@@ -391,8 +391,8 @@ therefore recommend that (i) inference-time routers inject top-k\* rather than "
 context"; (ii) any published k-profile carry a contamination/drift axis, not correctness
 alone; and (iii) robustness stress-tests vary register and turn-structure, not state
 density, since density is non-monotone. These recommendations apply per calibrated
-`(model, task, axis)` point — the primitive is already consumed by a router (DESi uses
-k-calibrated state slices as a control primitive, §8) — and a first task battery (§7.5) shows the
+`(model, task, axis)` point — the primitive can be consumed by routers; for example, DESi uses
+k-calibrated state slices as a control primitive — and a first task battery (§7.5) shows the
 correctness-optimal k does *not* transfer across task types, so a profile must be calibrated per
 task type rather than once per model.
 
