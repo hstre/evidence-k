@@ -1,0 +1,47 @@
+# Cross-DOMAIN probe with a PINNED OpenRouter provider (routing controlled).
+#
+# Identical to openrouter_domains.yaml, but the served backend is pinned via
+# `provider_pin` (order + allow_fallbacks: false) so the provider/quantization is
+# fixed across the whole k-sweep — removing the routing confound. The adapter
+# retries transient 5xx/429 without ever re-routing, and logs the served backend.
+#
+# The pin below (Together, fp8) is matched to qwen-2.5-7b-instruct — one of the two
+# providers OpenRouter lists for it; change both together if you dispatch a different model.
+#
+#   export OPENROUTER_API_KEY=sk-or-...
+#   evidence-k run --config configs/openrouter_domains_pinned.yaml
+
+model:
+  provider: openai_compatible
+  name: qwen/qwen-2.5-7b-instruct
+  temperature: 0
+  max_tokens: 512
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: OPENROUTER_API_KEY
+  provider_pin:
+    order: ["Together"]
+    allow_fallbacks: false
+
+benchmark:
+  k_values: [0, 1, 2, 3, 5, 8, 13, "full"]
+  repetitions: 2
+  random_seed: 42
+
+tasks:
+  - name: domain_technical
+    dataset: data/domains/technical.jsonl
+  - name: domain_medical
+    dataset: data/domains/medical.jsonl
+  - name: domain_legal
+    dataset: data/domains/legal.jsonl
+  - name: domain_finance
+    dataset: data/domains/finance.jsonl
+
+scoring:
+  weights:
+    correctness: 0.35
+    grounding: 0.20
+    constraint_adherence: 0.20
+    state_consistency: 0.15
+    hallucination_penalty: 0.10
+    cost_penalty: 0.00
