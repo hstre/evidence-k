@@ -40,9 +40,9 @@ h2,h3{page-break-after:avoid}
 <body>
 
 <h1>The Evidence-Saturation Point of Large Language Models</h1>
-<p class="subtitle">A Model-Specific <i>k*</i> and the Metric Axis on Which "More Context" Begins to Hurt</p>
+<p class="subtitle">A Model-Specific <i>k*</i> for Context Injection, Routing, and Inference-Time Governance</p>
 <p class="byline"><b>Steffen Rentschler</b> · Independent Researcher</p>
-<p class="meta">Working paper · July 2026 · v1.0</p>
+<p class="meta">Pilot working paper · July 2026 · v0.2</p>
 <hr class="rule">
 
 <p class="abstract"><b class="lead">Abstract.</b> More context is not monotonically better.
@@ -51,16 +51,18 @@ decision-relevant evidence improves reliability, beyond which it introduces nois
 cost for no gain. We define <b>k*</b>, the <i>evidence-saturation point</i>, as the
 empirically optimal number of evidence fragments for a (model, task, context-form) triple
 under a stated reliability objective, and give a small, reproducible protocol to estimate it.
-Our central methodological finding is that the answer depends on <b>which reliability axis is
-measured</b>: a correctness-only sweep certifies strong models as saturation-free, while a
-contamination axis scored on the <i>same</i> responses bends underneath it, invisible. Across
-eight models spanning three capability tiers, correctness stays a flat 1.000 at every k&nbsp;≥&nbsp;1
-for six of seven valid models while an epistemic-contamination severity of 0.05–0.08 sits
-entirely below it. Contamination is capability-gated (within two model lineages it falls
-monotonically as capability rises) but is <i>not</i> a clean function of parameter count
+Our pilot results suggest a <b>methodological risk</b>: whether "more context" hurts depends
+on <i>which reliability axis is measured</i> — a correctness-only sweep can certify strong
+models as saturation-free, while a contamination axis scored on the <i>same</i> responses
+bends underneath it, invisible. Across seven valid model runs spanning three capability tiers
+(with one further model excluded due to a gateway content-extraction artefact), correctness
+stayed a flat 1.000 at every k&nbsp;≥&nbsp;1 for six of the seven while an
+epistemic-contamination severity of 0.05–0.08 sat entirely below it. Contamination appears
+<b>capability-associated within the tested lineages</b> (in the two lineages we could
+compare, it falls as capability rises) but is <i>not</i> a clean function of parameter count
 across families. A second, original adversarial corpus written in a <i>credible</i>
-professional register does not overturn this: the capability gradient persists, and the
-strongest model is not sharpened by the more plausible framing. Finally, the
+professional register did not overturn this in our runs: the capability ordering persisted,
+and the strongest model was not sharpened by the more plausible framing. Finally, the
 contamination–vs–state-density curve is non-monotone, with an interior optimum and a
 high-density re-leak, so "use more context" (larger k) is the wrong control knob. We position
 k* as a calibration primitive that inference-time routers and governance layers can consume:
@@ -83,7 +85,7 @@ drifting toward the register or ontology of its inputs. The practical question i
 <i>whether</i> to bound context but <i>how much</i> to supply, measured against a reliability
 objective rather than assumed from a retriever score.</p>
 <p>This paper makes that question operational. We define the evidence-saturation point k* and
-give a reproducible measurement protocol, then report a pilot across eight models. Our
+give a reproducible measurement protocol, then report a pilot across eight models (seven with valid, scorable output). Our
 emphasis is methodological: <b>the reliability axis one chooses to measure is load-bearing.</b>
 A correctness-only benchmark — the dangerous default — is precisely the axis on which capable
 models look saturation-free. The failure that actually accumulates at high context for strong
@@ -93,24 +95,28 @@ locally fluent and factually correct.</p>
 <p>Contributions: (1) a definition of k* as an inference-time-control primitive, distinct from
 retriever top-k (§3); (2) the argument, with measurements, that reliability is multi-axis and
 that a correctness-only profile is <i>blind</i> to the axis that saturates for strong models
-(§4, §6); (3) a dual-instrumented benchmark that scores one response on both a correctness and
+(§4, §7); (3) a dual-instrumented benchmark that scores one response on both a correctness and
 a contamination axis at the same k, removing the task confound of comparing two harnesses
-(§5, §6.1); (4) evidence that contamination is capability-gated but not a clean size law, and
+(§6, §7.1); (4) evidence that contamination is capability-associated but not a clean size law, and
 that a credible professional adversarial register does not overturn the resistance of the
-strongest model (§6.2); (5) evidence that the contamination–vs–state-density relation is
-non-monotone, so larger k is the wrong knob for stress-testing robustness (§6.3), and a
-router/governance consequence (§7).</p>
+strongest model (§7.2); (5) evidence that the contamination–vs–state-density relation is
+non-monotone, so larger k is the wrong knob for stress-testing robustness (§7.3), and a
+router/governance consequence (§8).</p>
 
 <h2>2. Positioning</h2>
-<p>The work is adjacent to two literatures. First, inference-time control and long-context
-robustness: models do not use long contexts uniformly, and relevant information placed poorly
-in a long window is under-used (Liu et al., 2023). Second, retrieval-augmented generation,
-where a top-k of retrieved chunks is standard (Lewis et al., 2020). Our k* is <i>not</i>
-retriever top-k: k here is the empirically optimal number of decision-relevant fragments for a
-model under a defined task and output contract, measured against a reliability objective, not
-a retriever's similarity score. Where prior work argues <i>that</i> context should be relevant
-and bounded, we supply a <i>method to determine how much</i>, and a demonstration that the
-answer is axis-dependent.</p>
+<p>The work is adjacent to several literatures. First, long-context robustness and prompt
+sensitivity: models do not use long contexts uniformly, and relevant information placed poorly
+in a long window is under-used (Liu et al., 2023); irrelevant context readily distracts them
+(Shi et al., 2023); and few-shot behaviour is sensitive enough to warrant explicit calibration
+(Zhao et al., 2021). Second, retrieval augmentation, where a top-k of retrieved chunks is
+standard (Lewis et al., 2020) and increasingly adaptive (Asai et al., 2023), within a broader
+turn toward augmented, tool- and context-managed models (Mialon et al., 2023). Our k* is
+<i>not</i> retriever top-k: k here is the empirically optimal number of decision-relevant
+fragments for a model under a defined task and output contract, measured against a reliability
+objective, not a retriever's similarity score. Recent inference-time-control proposals argue
+that context should be made relevant and bounded but do not supply a <i>quantity</i> to
+calibrate; k* is intended as exactly that missing calibration quantity, and this paper adds the
+demonstration that the quantity is axis-dependent.</p>
 
 <h2>3. Defining k*</h2>
 <p>Let a task instance carry an ordered pool of candidate evidence fragments. For a budget
@@ -121,6 +127,13 @@ are placed in the prompt under a fixed output contract. Define</p>
 probes locate the knee with few, inexpensive points, and "full" already exhausts the pool. k*
 is explicitly not a constant; it depends on model, task type, chunk size, evidence density,
 prompt/control structure, output contract, and — the point of this paper — the metric axis.</p>
+<p>We distinguish three quantities that can all be called "k". <b>Retrieval top-k</b> is what a
+retriever returns by similarity score. <b>Evidence-saturation k*</b> (this paper) is the number
+of decision-relevant fragments a model should actually process under a control objective.
+<b>State-density k</b> (used only in §7.3) is an internal compression-density parameter of a
+distilled state representation — a probe of state <i>hygiene</i>, not a count of retrieved
+items. Our object of study is the second; the third appears only as a diagnostic and is not the
+same object.</p>
 
 <h2>4. Reliability is multi-axis</h2>
 <p>We deliberately do not reduce Reliability to accuracy. A first-cut objective is</p>
@@ -132,8 +145,42 @@ default: it is exactly the axis on which strong models appear saturation-free. T
 epistemic-contamination term is not cosmetic; for capable models it is frequently the
 <i>only</i> term that bends.</p>
 
-<h2>5. Method</h2>
-<h3>5.1 The two axes</h3>
+<h2>5. Practical use cases</h2>
+<p>The evidence-saturation point k* is not only a descriptive metric. It is a practical
+calibration primitive for systems that must decide how much context to inject into a model
+call. In current RAG and long-context systems this decision is often delegated to retriever
+rank, fixed defaults, or the available context-window size. k* instead makes the injection
+budget empirical: the system supplies the amount of evidence that maximizes the stated
+reliability objective for a given model and task.</p>
+<p><b>Retrieval-augmented generation.</b> k* can replace static retrieval defaults such as
+top-5 or top-10. A calibrated profile may show that a small model performs best with three
+dense fragments on factual QA, while a larger model tolerates more evidence for multi-hop
+synthesis. The retriever may still rank candidate fragments, but k* determines how many of them
+should enter the prompt.</p>
+<p><b>Memory and state management.</b> In long-running assistants, k* can govern how many state
+slices or prior decisions are reactivated for a turn, preventing memory systems from treating
+persistence as context accumulation. Instead of injecting every semantically similar memory, a
+router injects only the calibrated number of operationally relevant state items.</p>
+<p><b>Model routing and cost control.</b> k-profiles let routers compare models under realistic
+context budgets. A small model may be cost-effective when its k* is low and the task is narrow,
+yet become unreliable when forced to absorb many fragments; a larger model may justify its cost
+only where it maintains reliability at higher k. This makes k* useful for routing, not merely
+for prompt construction.</p>
+<p><b>Inference-time governance.</b> Systems with explicit control layers can use k* as a
+boundary condition: a node in a decision ladder should receive not "as much context as possible"
+but the calibrated top-k* for its task, model and reliability axis. This turns context injection
+into a governed operation — measurable, auditable and reproducible.</p>
+<p><b>Benchmarking and deployment checks.</b> k* can serve as a regression test. When a model,
+retriever, chunking strategy, prompt template or output contract changes, the k-curve can be
+re-measured; a shift in k* signals that the system's context tolerance has changed, even when
+headline accuracy is unchanged.</p>
+<p>The common point is that k* converts a vague engineering question — "how much context should
+we give the model?" — into a measurable deployment parameter. Its value is not universal: it
+must be reported with the model, task, evidence format, prompt/control structure and reliability
+axis used to estimate it.</p>
+
+<h2>6. Method</h2>
+<h3>6.1 The two axes</h3>
 <p><b>Correctness axis.</b> Each case has a single-token factual answer. We score correctness
 by normalized matching with digit↔word equivalence (so a model answering "10" where the gold
 is "ten" is not spuriously marked wrong), plus grounding, constraint adherence and a
@@ -146,22 +193,25 @@ toward a therapeutic/caregiver voice in an analytic task; (iii)&nbsp;<i>attribut
 explicitly attributed use of source terms is expected in an analysis and scores lower than
 unquoted adoption. For the dual-instrumented axis we normalize these into a single severity in
 [0,&nbsp;1] with weights framing 0.45 / drift 0.25 / attribution 0.20 / role 0.10 and saturation
-caps, so contamination is comparable to correctness on one scale.</p>
-<h3>5.2 Dual-instrumented design</h3>
+caps, so contamination is comparable to correctness on one scale. The contamination metric is
+intentionally conservative and diagnostic, not a complete semantic measure of epistemic
+adoption: it detects surface adoption of source vocabulary and role, and can under- or
+over-count paraphrase.</p>
+<h3>6.2 Dual-instrumented design</h3>
 <p>Comparing a correctness harness on one dataset with a contamination harness on another
 leaves a task confound. The <b>dual-instrumented</b> task removes it: each case embeds a
 single-token factual answer <i>inside</i> register-laden source prose and asks the model to
 describe the practice the source presents and state the fact. Engaging the manipulative
 framing is therefore unavoidable, and any adoption is observable. Correctness and contamination
 are read off the <i>same</i> response at the <i>same</i> k.</p>
-<h3>5.3 Corpora</h3>
+<h3>6.3 Corpora</h3>
 <p>Two adversarial corpora, both original to this work (no third-party dataset is
 load-bearing). The first is written in an overtly esoteric register; the second in a
 <i>credible</i> professional register — trauma-informed coaching and clinical jargon that reads
 as competence and is manipulative only when adopted unquoted (e.g. "the container", "limiting
 beliefs", "co-regulation"). The credible corpus tests whether the near-zero contamination of
 strong models is an artefact of a cartoonish register they trivially keep at arm's length.</p>
-<h3>5.4 Models and protocol</h3>
+<h3>6.4 Models and protocol</h3>
 <p>Eight models via OpenRouter across three tiers: small (<code>granite-4.0-h-micro</code>,
 <code>qwen-2.5-7b</code>, <code>llama-3.2-3b</code>), mid (<code>granite-4.1-8b</code>,
 <code>llama-3.1-8b</code>) and large (<code>gpt-4o</code>, <code>claude-opus-4.8</code>,
@@ -170,11 +220,11 @@ where honored, small synthetic datasets (3–8 cases), repetitions as noted. Run
 listed in Appendix A. Provider routing on a hosted gateway is not fully controllable; we do not
 claim bit-level reproducibility and treat magnitudes as indicative.</p>
 
-<h2>6. Results</h2>
+<h2>7. Results</h2>
 <p>Magnitudes are small (severity 0.01–0.08; leakage counts 0–9). We read the <b>structure</b>,
 not the absolute numbers, and label the study a pilot.</p>
 
-<h3>6.1 The blind axis, cross-model</h3>
+<h3>7.1 The blind axis, cross-model</h3>
 <p>Table 1 reports the dual-instrumented sweep. For six of seven valid models correctness is a
 flat 1.000 at every k&nbsp;≥&nbsp;1 while a contamination severity of 0.05–0.08 sits entirely
 underneath it. A correctness-only profile certifies all of these models as saturation-free;
@@ -197,18 +247,19 @@ they are not.</p>
 the gateway (a content-extraction artefact, not a scoring artefact — it survived the digit↔word
 fix); excluded pending an adapter fix, since a contamination figure without answer text is
 meaningless.</p>
-<p>Two structural facts follow. <b>(a) Within a lineage, more capable ⇒ less contamination and
-later onset</b>, cleanly twice: Granite micro 0.084 → 8B 0.070; gpt-4o 0.053 → gpt-5.5-pro
-0.014. The single most capable model is nearly immune even at full context; opus resists until
-k&nbsp;=&nbsp;8. <b>(b) It is not a clean size law across families</b>: <code>llama-3.2-3b</code>
+<p>Two structural patterns follow. <b>(a) Within a lineage, greater capability was associated
+with less contamination and later onset</b> in both lineages we could compare: Granite micro
+0.084 → 8B 0.070; gpt-4o 0.053 → gpt-5.5-pro 0.014. The single most capable model showed the
+lowest contamination even at full context; opus's onset came only at k&nbsp;=&nbsp;8. <b>(b) It
+is not a clean size law across families</b>: <code>llama-3.2-3b</code>
 (small) contaminates little (0.021) yet is unreliably <i>correct</i> (0.38–0.75) — a different
 failure mode — and <code>qwen-2.5-7b</code> never reaches zero. The driver is capability and
 recency, not parameter count or a "flagship" label (<code>gpt-4o</code>, an older large model,
 is mid-pack at 0.053).</p>
 
-<h3>6.2 A credible register does not overturn capability-gated resistance</h3>
+<h3>7.2 A credible register does not overturn the capability ordering</h3>
 <p>On the credible professional corpus (extended protocol, framing-leakage counts summed over
-three cases), the capability gradient persists (Table 2). The mid model shows roughly three
+three cases), the capability ordering persists (Table 2). The mid model shows roughly three
 times the framing leakage of the large model, and the large model's absolute leakage is low —
 the more plausible register does not sharpen the attack on the stronger model.</p>
 <table>
@@ -225,16 +276,19 @@ stronger model attributes it (scored as quoted, not adopted). In separate runs t
 model exhibited <i>higher</i> leakage under an esoteric register on a different corpus, which —
 while suggestive that a credible register is not a sharper attack — is a cross-corpus
 comparison and we do not rely on it here; a matched within-corpus esoteric sweep is future
-work (§8).</p>
+work (§9).</p>
 
-<h3>6.3 State density is non-monotone: larger k is the wrong knob</h3>
+<h3>7.3 State density is non-monotone: larger k is the wrong knob</h3>
 <p>The contamination–vs–state-density relation is U-shaped (Tables 2 and 3): framing leakage
 falls to an interior minimum, then rises again at high density. The high-density uptick is the
 <i>distilled state re-quoting more source vocabulary</i> — the ingestion pipeline degrading
 toward raw material — not the model failing. Consequently, increasing k does not "eventually
 break" a strong model in any informative sense: past the interior optimum one is measuring the
 leakage of an over-dense state, and past k&nbsp;≈&nbsp;full it is raw context by another name.
-Density k is a hygiene/structure control, not an attack-intensity control.</p>
+Density k is a hygiene/structure control, not an attack-intensity control. This density k is not
+the same object as the retrieval/evidence k of §3; it is an internal compression-density
+parameter used to probe state hygiene, and we keep the terms separate to avoid conflating the
+two.</p>
 <table>
 <caption>Table 3. A representative density sweep (llama-3.1-8b, credible corpus, leakage / 3 cases).</caption>
 <thead><tr><th>state density k</th><th>baseline</th><th>1</th><th>3</th><th>5</th><th>8</th></tr></thead>
@@ -243,7 +297,7 @@ Density k is a hygiene/structure control, not an attack-intensity control.</p>
 </tbody>
 </table>
 
-<h3>6.4 Immunity is a capability-gated threshold, not a wall</h3>
+<h3>7.4 Immunity is a capability-gated threshold, not a wall</h3>
 <p>We resist the word "immune". <code>claude-opus-4.8</code> is not categorically resistant — it
 does bend (onset at k&nbsp;=&nbsp;8 in Table 1). The threshold simply sits higher for more
 capable models, and for <code>gpt-5.5-pro</code> none of the levers we varied (raw volume, state
@@ -255,7 +309,7 @@ report a <b>capability-gated threshold</b>, not proven immunity, and note that c
 threshold with ever-heavier adversarial apparatus is an arms race against model releases rather
 than a stable measurement.</p>
 
-<h2>7. Discussion</h2>
+<h2>8. Discussion</h2>
 <p>The practical consequence is sharp. A <code>k_profile</code> built from correctness
 <b>only</b> is actively unsafe for strong models: it tells a router "k high is fine" while the
 contamination axis already recommends a small k. The hidden harm is largest for a <i>weaker
@@ -266,7 +320,7 @@ k-profile carry a contamination/drift axis, not correctness alone; and (iii) rob
 stress-tests vary register and turn-structure, not state density, since density is
 non-monotone.</p>
 
-<h2>8. Limitations and future work</h2>
+<h2>9. Limitations and future work</h2>
 <p>This is a pilot and should be read as a proof-of-method, not a performance estimate.
 (1)&nbsp;<b>Small N</b>: 3–8 synthetic cases per task; magnitudes are small and confidence
 intervals are not estimated. (2)&nbsp;<b>Heuristic metrics</b>: the contamination axis is a
@@ -274,7 +328,7 @@ closed lexical marker set; it detects surface adoption, not meaning, and can mis
 paraphrase. (3)&nbsp;<b>Provider routing</b>: a hosted gateway does not guarantee a fixed served
 backend or quantization; temperature 0 is not bit-reproducible. (4)&nbsp;<b>One excluded model</b>
 (gemini, extraction artefact). (5)&nbsp;<b>Cross-corpus comparison</b>: the esoteric-vs-credible
-contrast in §6.2 mixes corpora; a matched within-corpus esoteric density sweep on the same
+contrast in §7.2 mixes corpora; a matched within-corpus esoteric density sweep on the same
 harness is the clean next experiment. (6)&nbsp;<b>Scale of k</b>: to locate saturation for the
 largest models one needs cases with tens of genuinely decision-relevant fragments; the present
 datasets top out near k&nbsp;=&nbsp;13, so "no decline on correctness" is established only in
@@ -282,11 +336,11 @@ that range. The natural extensions are a high-fragment dataset (k up to ~89), a 
 (multi-hop, state consistency, conflict resolution, constraint following), and bootstrap
 confidence intervals.</p>
 
-<h2>9. Conclusion</h2>
+<h2>10. Conclusion</h2>
 <p>For a fixed model and task there is an evidence-saturation point k*, and whether "more
 context" hurts at all is a property of the metric axis, not just the model. A correctness axis
 is blind to the epistemic-contamination axis that actually saturates for strong models;
-contamination is capability-gated but not size-determined; a credible adversarial register does
+contamination is capability-associated but not size-determined; a credible adversarial register does
 not overturn strong-model resistance; and state density is the wrong knob for crossing it. k*
 is a calibration primitive: measured per model and task on the axis that can see the damage, it
 lets routers and governance layers inject the right amount of context instead of the most.</p>
@@ -294,10 +348,18 @@ lets routers and governance layers inject the right amount of context instead of
 <hr class="rule">
 <h2>References</h2>
 <ol class="refs">
+<li>Asai, A., Wu, Z., Wang, Y., et&nbsp;al. (2023). <i>Self-RAG: Learning to Retrieve, Generate,
+and Critique through Self-Reflection.</i> arXiv:2310.11511.</li>
 <li>Lewis, P., Perez, E., Piktus, A., et&nbsp;al. (2020). <i>Retrieval-Augmented Generation for
 Knowledge-Intensive NLP Tasks.</i> Advances in Neural Information Processing Systems 33.</li>
 <li>Liu, N.&nbsp;F., Lin, K., Hewitt, J., et&nbsp;al. (2023). <i>Lost in the Middle: How Language
 Models Use Long Contexts.</i> arXiv:2307.03172 (Transactions of the ACL, 2024).</li>
+<li>Mialon, G., Dessì, R., Lomeli, M., et&nbsp;al. (2023). <i>Augmented Language Models: a
+Survey.</i> Transactions on Machine Learning Research; arXiv:2302.07842.</li>
+<li>Shi, F., Chen, X., Misra, K., et&nbsp;al. (2023). <i>Large Language Models Can Be Easily
+Distracted by Irrelevant Context.</i> International Conference on Machine Learning (ICML).</li>
+<li>Zhao, Z., Wallace, E., Feng, S., et&nbsp;al. (2021). <i>Calibrate Before Use: Improving
+Few-Shot Performance of Language Models.</i> International Conference on Machine Learning (ICML).</li>
 <li>Rentschler, S. (2026). <i>Evidence-k: a benchmark for the evidence-saturation point k*.</i>
 Software and data: github.com/hstre/evidence-k.</li>
 <li><i>DESi context-contamination benchmark</i> (2026). Deterministic contamination heuristics.
