@@ -31,6 +31,10 @@ class ModelAdapterError(RuntimeError):
 class OpenAICompatibleModel(Model):
     provider = "openai_compatible"
 
+    # HTTP statuses worth retrying (transient gateway/provider errors). 4xx client
+    # errors (400/401/403/404) are NOT retried — they will not fix themselves.
+    _RETRYABLE = frozenset({408, 409, 425, 429, 500, 502, 503, 504})
+
     def __init__(
         self,
         name: str,
@@ -40,6 +44,7 @@ class OpenAICompatibleModel(Model):
         api_key_env: str | None = None,
         timeout: float = 60.0,
         extra: dict[str, Any] | None = None,
+        retries: int = 4,
     ) -> None:
         super().__init__(name=name, temperature=temperature, max_tokens=max_tokens)
         self.base_url = (base_url or os.environ.get("OPENAI_BASE_URL") or DEFAULT_BASE_URL).rstrip(
@@ -47,8 +52,16 @@ class OpenAICompatibleModel(Model):
         )
         self.api_key_env = api_key_env or DEFAULT_KEY_ENV
         self.timeout = timeout
-        self.extra = extra or {}
+        self.retries = max(1, retries)
+        # extra may carry a ``provider_pin`` helper key (OpenRouter provider routing);
+        # it is translated into the payload's ``provider`` field, never sent verbatim.
+        self.extra = dict(extra or {})
+        self._provider_pin = self.extra.pop("provider_pin", None)
         self._api_key: str | None = None
+        # served-backend provenance, filled as calls return (so a pin can be verified)
+        self.providers_seen: set[str] = set()
+        self.served_models_seen: set[str] = set()
+        self._logged_backend = False
 
     def _resolve_key(self) -> str:
         if self._api_key is not None:
@@ -63,9 +76,13 @@ class OpenAICompatibleModel(Model):
         self._api_key = key
         return key
 
-    def generate(self, prompt: Prompt, *, repetition: int = 0) -> ModelResponse:
-        key = self._resolve_key()
-        url = f"{self.base_url}/chat/completions"
+    def _build_payload(self, prompt: Prompt) -> dict[str, Any]:
+        """Assemble the Chat Completions request body (no network; unit-testable).
+
+        A ``provider_pin`` (e.g. ``{"order": ["DeepInfra"], "allow_fallbacks": false}``)
+        is translated into OpenRouter's ``provider`` routing field so the served
+        backend is controlled; ``allow_fallbacks`` defaults to ``false`` under a pin.
+        """
         payload: dict[str, Any] = {
             "model": self.name,
             "messages": [
@@ -76,8 +93,18 @@ class OpenAICompatibleModel(Model):
             "max_tokens": self.max_tokens,
         }
         payload.update(self.extra)
+        if self._provider_pin:
+            pin = self._provider_pin
+            payload["provider"] = {
+                "order": list(pin["order"]),
+                "allow_fallbacks": bool(pin.get("allow_fallbacks", False)),
+            }
+        return payload
 
-        body = json.dumps(payload).encode("utf-8")
+    def generate(self, prompt: Prompt, *, repetition: int = 0) -> ModelResponse:
+        key = self._resolve_key()
+        url = f"{self.base_url}/chat/completions"
+        body = json.dumps(self._build_payload(prompt)).encode("utf-8")
         req = urllib.request.Request(
             url,
             data=body,
@@ -89,24 +116,30 @@ class OpenAICompatibleModel(Model):
         )
 
         start = time.perf_counter()
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                raw = json.loads(resp.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", "replace")
-            raise ModelAdapterError(
-                f"Provider returned HTTP {exc.code} for model {self.name!r}: {detail}"
-            ) from exc
-        except urllib.error.URLError as exc:
-            raise ModelAdapterError(
-                f"Could not reach provider at {self.base_url!r}: {exc.reason}"
-            ) from exc
+        raw = self._request_with_retry(req)
         latency_s = time.perf_counter() - start
 
         try:
             text = raw["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
             raise ModelAdapterError(f"Unexpected response shape from provider: {raw!r}") from exc
+
+        # served-backend provenance (OpenRouter reports the routed provider + served
+        # model id, often a provider-specific quantization). Recorded so a pin is
+        # verifiable after the fact; printed once so it lands in run logs.
+        served_provider = raw.get("provider")
+        served_model = raw.get("model")
+        if served_provider:
+            self.providers_seen.add(str(served_provider))
+        if served_model:
+            self.served_models_seen.add(str(served_model))
+        if not self._logged_backend and (served_provider or served_model):
+            self._logged_backend = True
+            pinned = self._provider_pin["order"] if self._provider_pin else None
+            print(
+                f"[served backend] provider={served_provider} model={served_model}"
+                + (f" (pinned to {pinned})" if pinned else " (unpinned)")
+            )
 
         usage = raw.get("usage", {}) or {}
         prompt_tokens = int(usage.get("prompt_tokens", self._estimate_prompt_tokens(prompt)))
@@ -117,5 +150,34 @@ class OpenAICompatibleModel(Model):
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             latency_s=latency_s,
-            raw={"provider": self.provider, "model": self.name},
+            raw={
+                "provider": self.provider,
+                "model": self.name,
+                "served_provider": served_provider,
+                "served_model": served_model,
+            },
         )
+
+    def _request_with_retry(self, req: urllib.request.Request) -> dict[str, Any]:
+        """POST with exponential backoff on transient (5xx/429/network) failures.
+
+        Non-retryable client errors (400/401/403/404) raise immediately. A pinned
+        provider with fallbacks disabled makes transient upstream errors more likely
+        to surface, so retrying here is what keeps a pinned sweep from dying on one
+        blip — without ever silently re-routing to a different backend.
+        """
+        last = ""
+        for attempt in range(self.retries):
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    return json.loads(resp.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", "replace")
+                last = f"HTTP {exc.code} for model {self.name!r}: {detail[:300]}"
+                if exc.code not in self._RETRYABLE:
+                    raise ModelAdapterError(f"Provider returned {last}") from exc
+            except urllib.error.URLError as exc:
+                last = f"network error reaching {self.base_url!r}: {exc.reason}"
+            if attempt + 1 < self.retries:
+                time.sleep(2**attempt)
+        raise ModelAdapterError(f"Provider request failed after {self.retries} attempts: {last}")
