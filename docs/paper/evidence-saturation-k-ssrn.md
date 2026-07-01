@@ -2,7 +2,7 @@
 
 ### A Model-Specific *k\** for Context Injection, Routing, and Inference-Time Governance
 
-**Steffen Rentschler** · Independent Researcher
+**Hanns-Steffen Rentschler** · Independent Researcher
 Pilot working paper · July 2026 · v0.2
 
 ---
@@ -389,7 +389,7 @@ of the most.
 - Rentschler, H.-S. (2026a). *Model Identity Verification Protocol (MIVP): A Cryptographic
   Attestation Standard for AI Systems.* Technical Specification (Draft), v2.1. SSRN Working
   Paper. https://dx.doi.org/10.2139/ssrn.6243978
-- Rentschler, S. (2026b). *Evidence-k: a benchmark for the evidence-saturation point k\*.*
+- Rentschler, H.-S. (2026b). *Evidence-k: a benchmark for the evidence-saturation point k\*.*
   Software and data: https://github.com/hstre/evidence-k
 - *DESi context-contamination benchmark* (2026). Deterministic contamination heuristics.
   Software: https://github.com/hstre/DESi
