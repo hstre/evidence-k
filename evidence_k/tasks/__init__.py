@@ -5,6 +5,12 @@ from __future__ import annotations
 from .base import Case, DimensionScores, Evidence, Task
 from .conflict_resolution import ConflictResolutionTask
 from .constraint_following import ConstraintFollowingTask
+from .domain_probe import (
+    FinanceQATask,
+    LegalQATask,
+    MedicalQATask,
+    TechnicalQATask,
+)
 from .dual_instrumented import DualInstrumentedTask
 from .factual_qa import FactualQATask
 from .state_consistency import StateConsistencyTask
@@ -15,6 +21,10 @@ _REGISTRY: dict[str, type[Task]] = {
     ConflictResolutionTask.name: ConflictResolutionTask,
     ConstraintFollowingTask.name: ConstraintFollowingTask,
     DualInstrumentedTask.name: DualInstrumentedTask,
+    TechnicalQATask.name: TechnicalQATask,
+    MedicalQATask.name: MedicalQATask,
+    LegalQATask.name: LegalQATask,
+    FinanceQATask.name: FinanceQATask,
 }
 
 __all__ = [
