@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Evidence-k — the evidence-saturation point of LLMs</title>
+<meta name="description" content="More context is not monotonically better. Evidence-k measures k*, the evidence-saturation point of an LLM — and shows that whether more context hurts at all is a property of the metric axis, not just the model. Real OpenRouter runs across 8 models, two original adversarial corpora.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>📈</text></svg>">
+<style>
+:root{--bg:#070a10;--panel:#0f1622;--line:#1c2737;--ink:#e8eef7;--muted:#8a99af;--faint:#5c6b82;
+--accent:#2ce6c4;--amber:#e0b03a;--warn:#ff6b6b;--good:#2ce6c4;--bad:#ff6b6b;
+--mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+--sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+header{border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(7,10,16,.86);backdrop-filter:blur(8px);z-index:5}
+.bar{display:flex;align-items:center;gap:16px;height:60px}
+.bar .brand{font:700 18px var(--mono);letter-spacing:.5px;color:var(--ink)}
+.bar .brand b{color:var(--accent)}
+.bar nav{margin-left:auto;display:flex;gap:18px;align-items:center;font:600 13px var(--mono)}
+.langtoggle{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;font:700 12px var(--mono)}
+.langtoggle button{background:transparent;color:var(--muted);border:0;padding:4px 11px;cursor:pointer;font:inherit}
+.langtoggle button.active{background:var(--accent);color:#04231e}
+.hero{padding:54px 0 22px}
+.kicker{font:700 12px var(--mono);letter-spacing:2px;color:var(--accent);text-transform:uppercase}
+h1{font:800 38px/1.12 var(--sans);margin:12px 0 14px;letter-spacing:-.5px}
+h2{font:800 23px var(--sans);margin:44px 0 10px;letter-spacing:-.3px}
+h2 .n{color:var(--accent);font:700 15px var(--mono);margin-right:8px}
+.lede{font-size:18px;color:#cdd8e8;max-width:82ch}
+.lede b{color:var(--ink)}
+.eq{display:block;font:600 15px var(--mono);color:var(--accent);background:#0b111b;border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:18px 0;max-width:max-content}
+.tag{display:inline-block;font:700 11px var(--mono);padding:3px 9px;border:1px solid var(--line);border-radius:999px;color:var(--muted);margin:2px 6px 2px 0}
+.tag.ok{color:var(--good);border-color:#1c4a44} .tag.no{color:var(--warn);border-color:#4a1c1c} .tag.op{color:var(--amber);border-color:#4a3a1c}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:16px 0}
+.chart{background:#0b111b;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:16px 0}
+.chart svg{width:100%;height:auto;display:block}
+.chart .cap{color:var(--muted);font:12.5px var(--sans);margin:10px 2px 0}
+.chart text{font-family:var(--mono)}
+table{width:100%;border-collapse:collapse;font:13px var(--mono);margin:6px 0}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:center}
+thead th,tbody th{background:#0b111b;color:var(--muted);font-weight:700}
+tbody th{text-align:left;color:var(--ink);white-space:nowrap}
+td.good{color:var(--good);font-weight:700} td.bad{color:var(--bad);font-weight:700} td.amber{color:var(--amber);font-weight:700}
+td.na{color:var(--faint)}
+.muted{color:var(--muted)} .small{font-size:13.5px}
+ul.q{list-style:none;padding:0;margin:8px 0}
+ul.q>li{padding:10px 0 10px 26px;border-top:1px solid var(--line);position:relative}
+ul.q>li:before{content:"▸";position:absolute;left:4px;color:var(--accent)}
+ul.q>li b{color:var(--ink)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.cols h3{font:700 13px var(--mono);letter-spacing:.5px;margin:0 0 8px}
+.cols .up h3{color:var(--bad)} .cols .down h3{color:var(--good)}
+.cols ul{margin:0;padding-left:18px} .cols li{margin:5px 0;font-size:14px;color:#cdd8e8}
+footer{border-top:1px solid var(--line);margin-top:48px;padding:26px 0;color:var(--muted);font-size:13px}
+html[data-lang=en] .de{display:none}
+html[data-lang=de] .en{display:none}
+@media(max-width:760px){.cols{grid-template-columns:1fr} h1{font-size:30px} .bar nav{gap:12px}}
+</style>
+</head>
+<body>
+<header><div class="wrap bar">
+<span class="brand">Evidence<b>-k</b></span>
+<nav>
+<a href="https://github.com/hstre/evidence-k">Code ↗</a>
+<a href="https://github.com/hstre/evidence-k/blob/main/docs/paper/evidence-saturation-k.md">Paper ↗</a>
+<span class="langtoggle"><button data-l="en" class="active">EN</button><button data-l="de">DE</button></span>
+</nav></div></header>
+
+<main class="wrap">
+<section class="hero">
+<div class="kicker"><span class="en">Measurement &amp; benchmark · we report the blind axis too</span><span class="de">Messung &amp; Benchmark · wir berichten auch die blinde Achse</span></div>
+<h1><span class="en">More context is not monotonically better. <span style="color:var(--accent)">How much is?</span></span><span class="de">Mehr Kontext ist nicht monoton besser. <span style="color:var(--accent)">Wie viel schon?</span></span></h1>
+<p class="lede en">For a given model, task and context format there is a measurable region where extra
+evidence improves reliability — beyond which it adds noise, drift and cost for no gain. <b>Evidence-k</b>
+measures <b>k*</b>, that evidence-saturation point, with a reproducible protocol.</p>
+<p class="lede de">Für ein gegebenes Modell, eine Aufgabe und ein Kontextformat gibt es eine messbare
+Region, in der zusätzliche Evidenz die Zuverlässigkeit verbessert — jenseits davon bringt sie Rauschen,
+Drift und Kosten ohne Gewinn. <b>Evidence-k</b> misst <b>k*</b>, diesen Evidenz-Sättigungspunkt, mit
+einem reproduzierbaren Protokoll.</p>
+<span class="eq">k* = argmax<sub>k</sub>  Reliability(model, task, evidence<sub>k</sub>)</span>
+<p class="lede en"><b>The load-bearing finding:</b> the answer depends on <b>which reliability axis you
+measure</b>. A correctness-only sweep shows strong models as saturation-free — while a contamination
+sweep on the <b>same answer</b> bends underneath it, invisible. "No decline" meant <b>wrong axis</b>,
+not "no damage".</p>
+<p class="lede de"><b>Der tragende Befund:</b> Die Antwort hängt davon ab, <b>welche Zuverlässigkeitsachse
+man misst</b>. Ein reiner Korrektheits-Sweep zeigt starke Modelle als sättigungsfrei — während ein
+Kontaminations-Sweep auf <b>derselben Antwort</b> darunter abknickt, unsichtbar. „Kein Abfall" hieß
+<b>falsche Achse</b>, nicht „kein Schaden".</p>
+<p style="margin-top:16px">
+<span class="tag ok"><span class="en">blind axis is real</span><span class="de">blinde Achse ist real</span></span>
+<span class="tag ok"><span class="en">capability ⇒ less contamination (within a lineage)</span><span class="de">mehr Kapazität ⇒ weniger Kontamination (in einer Linie)</span></span>
+<span class="tag no"><span class="en">not a clean size law</span><span class="de">kein sauberes Größengesetz</span></span>
+<span class="tag op"><span class="en">strong-model immunity = threshold, not wall</span><span class="de">Immunität der Großen = Schwelle, keine Mauer</span></span>
+<span class="tag ok"><span class="en">own corpora · own metric · no external dataset</span><span class="de">eigene Korpora · eigene Metrik · kein externer Datensatz</span></span>
+</p>
+</section>
+
+<h2><span class="n">1</span><span class="en">The blind axis · one answer, two verdicts</span><span class="de">Die blinde Achse · eine Antwort, zwei Urteile</span></h2>
+<p class="lede small en">The dual-instrumented benchmark scores <b>one response</b> on both axes at the same
+k, removing the task confound. Each case hides a single-token fact inside register-laden source prose
+and asks the model to describe the practice and state the fact — so engaging the manipulative framing
+is unavoidable, and any adoption is observable.</p>
+<p class="lede small de">Der dual-instrumentierte Benchmark bewertet <b>eine einzige Antwort</b> auf beiden
+Achsen beim selben k und beseitigt so den Aufgaben-Confound. Jeder Fall versteckt eine Ein-Token-Tatsache
+in register-geladener Quellprosa und verlangt, die Praxis zu beschreiben und die Tatsache zu nennen — das
+Einlassen auf die manipulative Rahmung ist unvermeidlich, jede Übernahme sichtbar.</p>
+
+<div class="chart">
+<svg viewBox="0 0 640 250" role="img" aria-label="Max contamination by model">
+<line x1="180" y1="8" x2="180" y2="224" stroke="#1c2737"/>
+<line x1="326.7" y1="8" x2="326.7" y2="224" stroke="#121a28"/>
+<line x1="473.3" y1="8" x2="473.3" y2="224" stroke="#121a28"/>
+<line x1="620" y1="8" x2="620" y2="224" stroke="#121a28"/>
+<text x="180" y="240" fill="#5c6b82" font-size="10" text-anchor="middle">0</text>
+<text x="326.7" y="240" fill="#5c6b82" font-size="10" text-anchor="middle">0.03</text>
+<text x="473.3" y="240" fill="#5c6b82" font-size="10" text-anchor="middle">0.06</text>
+<text x="620" y="240" fill="#5c6b82" font-size="10" text-anchor="middle">0.09</text>
+<!-- rows -->
+<g font-size="11">
+<text x="172" y="24" fill="#e8eef7" text-anchor="end">granite-4.0-micro</text><rect x="180" y="14" width="410.7" height="16" rx="2" fill="#ff6b6b"/><text x="596" y="26" fill="#ff6b6b">0.084</text>
+<text x="172" y="54" fill="#e8eef7" text-anchor="end">granite-4.1-8b</text><rect x="180" y="44" width="342.2" height="16" rx="2" fill="#ff6b6b"/><text x="528" y="56" fill="#ff6b6b">0.070</text>
+<text x="172" y="84" fill="#e8eef7" text-anchor="end">qwen-2.5-7b</text><rect x="180" y="74" width="259.1" height="16" rx="2" fill="#ff8a6b"/><text x="445" y="86" fill="#ff8a6b">0.053</text>
+<text x="172" y="114" fill="#e8eef7" text-anchor="end">gpt-4o</text><rect x="180" y="104" width="259.1" height="16" rx="2" fill="#ff8a6b"/><text x="445" y="116" fill="#ff8a6b">0.053</text>
+<text x="172" y="144" fill="#e8eef7" text-anchor="end">claude-opus-4.8</text><rect x="180" y="134" width="239.6" height="16" rx="2" fill="#e0b03a"/><text x="425" y="146" fill="#e0b03a">0.049</text>
+<text x="172" y="174" fill="#e8eef7" text-anchor="end">llama-3.2-3b*</text><rect x="180" y="164" width="102.7" height="16" rx="2" fill="#6fae7a"/><text x="288" y="176" fill="#6fae7a">0.021</text>
+<text x="172" y="204" fill="#e8eef7" text-anchor="end">gpt-5.5-pro</text><rect x="180" y="194" width="68.4" height="16" rx="2" fill="#2ce6c4"/><text x="254" y="206" fill="#2ce6c4">0.014</text>
+</g>
+</svg>
+<p class="cap en"><b>Max contamination by model.</b> The hidden axis — correctness sits flat at 1.0 above
+<i>all</i> of these. Descending gradient tracks capability/recency, not size. *llama-3.2-3b is low here
+but unreliably correct (a different failure).</p>
+<p class="cap de"><b>Max. Kontamination je Modell.</b> Die versteckte Achse — Korrektheit liegt flach bei
+1,0 über <i>allen</i>. Das fallende Gefälle folgt Fähigkeit/Aktualität, nicht Größe. *llama-3.2-3b ist
+hier niedrig, aber unzuverlässig korrekt (ein anderer Fehlermodus).</p>
+</div>
+
+<div class="panel small">
+<table>
+<thead><tr>
+<th style="text-align:left"><span class="en">model</span><span class="de">Modell</span></th>
+<th><span class="en">class</span><span class="de">Klasse</span></th>
+<th><span class="en">correctness flat 1.0?</span><span class="de">Korrektheit flach 1,0?</span></th>
+<th><span class="en">max contamination</span><span class="de">max. Kontamination</span></th>
+<th><span class="en">onset k</span><span class="de">Beginn k</span></th>
+</tr></thead>
+<tbody>
+<tr><th>ibm-granite-4.0-h-micro</th><td><span class="en">small</span><span class="de">klein</span></td><td class="good"><span class="en">yes</span><span class="de">ja</span></td><td class="bad">0.084</td><td>k=1</td></tr>
+<tr><th>qwen-2.5-7b</th><td><span class="en">small</span><span class="de">klein</span></td><td class="good"><span class="en">yes</span><span class="de">ja</span></td><td class="bad">0.053</td><td><span class="en">k=1 · never 0</span><span class="de">k=1 · nie 0</span></td></tr>
+<tr><th>llama-3.2-3b</th><td><span class="en">small</span><span class="de">klein</span></td><td class="bad"><span class="en">no · 0.38–0.75</span><span class="de">nein · 0,38–0,75</span></td><td>0.021</td><td class="na">—</td></tr>
+<tr><th>ibm-granite-4.1-8b</th><td><span class="en">mid</span><span class="de">mittel</span></td><td class="good"><span class="en">yes</span><span class="de">ja</span></td><td class="bad">0.070</td><td>k=1</td></tr>
+<tr><th>gpt-4o</th><td><span class="en">flagship</span><span class="de">Flaggschiff</span></td><td class="good"><span class="en">yes</span><span class="de">ja</span></td><td class="bad">0.053</td><td>k=1</td></tr>
+<tr><th>claude-opus-4.8</th><td><span class="en">flagship</span><span class="de">Flaggschiff</span></td><td class="good"><span class="en">yes</span><span class="de">ja</span></td><td class="amber">0.049</td><td>k=8</td></tr>
+<tr><th>gpt-5.5-pro</th><td><span class="en">flagship · largest</span><span class="de">Flaggschiff · größtes</span></td><td class="good"><span class="en">yes</span><span class="de">ja</span></td><td class="good">0.014</td><td><span class="en">~never</span><span class="de">~nie</span></td></tr>
+<tr><th>gemini-2.5-pro</th><td><span class="en">flagship</span><span class="de">Flaggschiff</span></td><td class="na">—</td><td class="na">—</td><td class="na"><span class="en">unmeasurable¹</span><span class="de">nicht messbar¹</span></td></tr>
+</tbody>
+</table>
+<p class="muted small en" style="margin:8px 0 0">n = 8 cases, pilot — magnitudes are small (0.01–0.08); read the
+<b>structure</b>, not the absolute numbers. For 6 of 7 valid models correctness is a flat <b>1.000</b> at
+every k≥1 while contamination of 0.05–0.08 sits entirely underneath it. <span class="na">¹ gemini returned
+empty content via the OpenRouter shim — a content-extraction artifact, excluded pending an adapter fix.</span></p>
+<p class="muted small de" style="margin:8px 0 0">n = 8 Fälle, Pilot — die Beträge sind klein (0,01–0,08);
+lies die <b>Struktur</b>, nicht die Absolutwerte. Bei 6 von 7 gültigen Modellen ist die Korrektheit ein
+flaches <b>1,000</b> bei jedem k≥1, während Kontamination von 0,05–0,08 vollständig darunter liegt.
+<span class="na">¹ gemini lieferte über den OpenRouter-Shim leeren Inhalt — ein Extraktions-Artefakt,
+ausgeschlossen bis zum Adapter-Fix.</span></p>
+</div>
+<ul class="q en">
+<li><b>Within a lineage, more capable ⇒ less contamination, later onset.</b> Cleanly twice: Granite micro
+0.084 → 8B 0.070; gpt-4o 0.053 → gpt-5.5-pro 0.014. The most capable model is nearly immune even at full
+context; opus resists until k=8.</li>
+<li><b>But it is <span style="color:var(--warn)">not</span> a clean size law.</b> llama-3.2-3b (small)
+contaminates little (0.021) yet is unreliably <i>correct</i> — a different failure. The driver is
+capability/recency, not parameter count or the "flagship" label.</li>
+<li><b>The harm concentrates on weak-model-plus-more-context</b> — the cost-driven "small model + lots of
+RAG" configuration — and a correctness-only k-profile is blind to exactly it.</li>
+</ul>
+<ul class="q de">
+<li><b>In einer Modell-Linie ⇒ fähiger = weniger Kontamination, späterer Beginn.</b> Zweimal sauber:
+Granite micro 0,084 → 8B 0,070; gpt-4o 0,053 → gpt-5.5-pro 0,014. Das fähigste Modell ist selbst bei
+vollem Kontext nahezu immun; opus widersteht bis k=8.</li>
+<li><b>Aber <span style="color:var(--warn)">kein</span> sauberes Größengesetz.</b> llama-3.2-3b (klein)
+kontaminiert wenig (0,021), ist aber unzuverlässig <i>korrekt</i> — ein anderer Fehlermodus. Treiber ist
+Fähigkeit/Aktualität, nicht Parameterzahl oder das „Flaggschiff"-Label.</li>
+<li><b>Der Schaden konzentriert sich auf schwaches-Modell-plus-mehr-Kontext</b> — die kostengetriebene
+„kleines Modell + viel RAG"-Konfiguration — und genau dafür ist ein reines Korrektheits-Profil blind.</li>
+</ul>
+
+<h2><span class="n">2</span><span class="en">Register credibility reverses by capability</span><span class="de">Register-Glaubwürdigkeit kehrt sich mit der Fähigkeit um</span></h2>
+<p class="lede small en">Objection: the §1 register is overtly esoteric, which a strong model trivially keeps
+at arm's length. So we wrote a second, <b>fully original</b> adversarial corpus in a <b>credible</b>
+register — trauma-informed coaching / clinical jargon that reads as professional competence and is
+manipulative only when adopted unquoted — and ran the same density sweep (framing leakage, summed over 3
+cases).</p>
+<p class="lede small de">Einwand: Das Register in §1 ist offen esoterisch, was ein starkes Modell mühelos
+auf Distanz hält. Also schrieben wir einen zweiten, <b>vollständig originalen</b> Angriffskorpus in einem
+<b>glaubwürdigen</b> Register — trauma-informierter Coaching-/Klinik-Jargon, der wie professionelle
+Kompetenz klingt und nur manipulativ ist, wenn unzitiert übernommen — und ließen denselben Density-Sweep
+laufen (framing leakage, über 3 Fälle summiert).</p>
+
+<div class="chart">
+<svg viewBox="0 0 480 250" role="img" aria-label="Credible vs esoteric framing leakage">
+<line x1="60" y1="200" x2="460" y2="200" stroke="#1c2737"/>
+<line x1="60" y1="20" x2="60" y2="200" stroke="#1c2737"/>
+<g fill="#5c6b82" font-size="10" text-anchor="end">
+<text x="54" y="204">0</text><text x="54" y="150">3</text><text x="54" y="96">6</text><text x="54" y="42">9</text></g>
+<line x1="60" y1="146" x2="460" y2="146" stroke="#121a28"/>
+<line x1="60" y1="92" x2="460" y2="92" stroke="#121a28"/>
+<line x1="60" y1="38" x2="460" y2="38" stroke="#121a28"/>
+<!-- llama group (amplifies) -->
+<rect x="110" y="146" width="42" height="54" fill="#3a4658"/><text x="131" y="140" fill="#8a99af" font-size="11" text-anchor="middle">3.0</text>
+<rect x="160" y="92" width="42" height="108" fill="#ff6b6b"/><text x="181" y="86" fill="#ff6b6b" font-size="11" text-anchor="middle">6.0</text>
+<text x="156" y="218" fill="#e8eef7" font-size="12" text-anchor="middle">llama-3.1-8b</text>
+<text x="156" y="233" fill="#ff6b6b" font-size="12" text-anchor="middle">▲ amplifies</text>
+<!-- opus group (dampens) -->
+<rect x="300" y="38" width="42" height="162" fill="#3a4658"/><text x="321" y="32" fill="#8a99af" font-size="11" text-anchor="middle">9.0</text>
+<rect x="350" y="164" width="42" height="36" fill="#2ce6c4"/><text x="371" y="158" fill="#2ce6c4" font-size="11" text-anchor="middle">2.0</text>
+<text x="346" y="218" fill="#e8eef7" font-size="12" text-anchor="middle">claude-opus-4.8</text>
+<text x="346" y="233" fill="#2ce6c4" font-size="12" text-anchor="middle">▼ dampens</text>
+<!-- legend -->
+<rect x="60" y="8" width="11" height="11" fill="#3a4658"/><text x="76" y="18" fill="#8a99af" font-size="11">eso baseline</text>
+<rect x="168" y="8" width="11" height="11" fill="#ff6b6b"/><text x="184" y="18" fill="#8a99af" font-size="11">credible baseline</text>
+</svg>
+<p class="cap en"><b>Framing leakage: credible vs esoteric register.</b> The credible (professional) register
+<i>amplifies</i> the mid model but <i>dampens</i> the strong one — a reversal by capability. opus attributes
+the coaching jargon cleanly (scored as quoted, not adopted); the weaker model adopts it unquoted.</p>
+<p class="cap de"><b>Framing leakage: glaubwürdiges vs. esoterisches Register.</b> Das glaubwürdige (professionelle)
+Register <i>verstärkt</i> das mittlere Modell, <i>dämpft</i> aber das starke — eine Umkehr nach Fähigkeit.
+opus attribuiert den Coaching-Jargon sauber (als zitiert gewertet, nicht übernommen); das schwächere Modell
+übernimmt ihn unzitiert.</p>
+</div>
+
+<div class="cols">
+<div class="panel up"><h3><span class="en">credible register · mid model</span><span class="de">glaubwürdiges Register · mittleres Modell</span></h3>
+<ul class="en"><li>baseline framing leakage <b>6.0</b> vs eso ~3.0</li><li>register drift 0.4–0.6, pulled into the therapist role</li><li>adopts professional jargon unquoted</li></ul>
+<ul class="de"><li>baseline framing leakage <b>6,0</b> vs. eso ~3,0</li><li>register drift 0,4–0,6, in die Therapeuten-Rolle gezogen</li><li>übernimmt Profi-Jargon unzitiert</li></ul></div>
+<div class="panel down"><h3><span class="en">credible register · strong model</span><span class="de">glaubwürdiges Register · starkes Modell</span></h3>
+<ul class="en"><li>baseline <b>2.0</b> — lower than its own eso 9.0</li><li>attributes the jargon, keeps distance</li><li>the engineered-harder register made it <i>cleaner</i></li></ul>
+<ul class="de"><li>baseline <b>2,0</b> — niedriger als sein eigenes eso 9,0</li><li>attribuiert den Jargon, hält Distanz</li><li>das absichtlich schwerere Register machte es <i>sauberer</i></li></ul></div>
+</div>
+
+<h2><span class="n">3</span><span class="en">Is the strong model immune — or just deferred?</span><span class="de">Ist das starke Modell immun — oder nur aufgeschoben?</span></h2>
+<p class="lede small en">Neither pure immunity nor merely "push k higher". The honest reading is a
+<b>capability-gated threshold</b> — and state density <b>k</b> is the wrong knob for crossing it.</p>
+<p class="lede small de">Weder reine Immunität noch bloß „k höher drehen". Die ehrliche Lesart ist eine
+<b>kapazitäts-gegatete Schwelle</b> — und State-Dichte <b>k</b> ist der falsche Knopf, um sie zu
+überschreiten.</p>
+
+<div class="chart">
+<svg viewBox="0 0 560 240" role="img" aria-label="Density sweep U-shape">
+<line x1="60" y1="180" x2="540" y2="180" stroke="#1c2737"/>
+<line x1="60" y1="30" x2="60" y2="180" stroke="#1c2737"/>
+<g fill="#5c6b82" font-size="10" text-anchor="end"><text x="54" y="184">0</text><text x="54" y="109">13</text><text x="54" y="34">26</text></g>
+<line x1="60" y1="105" x2="540" y2="105" stroke="#121a28"/>
+<line x1="60" y1="30" x2="540" y2="30" stroke="#121a28"/>
+<!-- baseline reference (raw) -->
+<line x1="60" y1="38.7" x2="540" y2="38.7" stroke="#3a4658" stroke-dasharray="4 4"/>
+<text x="540" y="34" fill="#8a99af" font-size="10" text-anchor="end">baseline (raw) 24.5</text>
+<!-- U curve over k -->
+<polyline points="175,125.2 285,156.9 395,142.5 505,107.9" fill="none" stroke="#2ce6c4" stroke-width="2"/>
+<g fill="#2ce6c4"><circle cx="175" cy="125.2" r="4"/><circle cx="285" cy="156.9" r="4"/><circle cx="395" cy="142.5" r="4"/><circle cx="505" cy="107.9" r="4"/></g>
+<g font-size="11" text-anchor="middle">
+<text x="175" y="116" fill="#cdd8e8">9.5</text>
+<text x="285" y="172" fill="#2ce6c4">4.0 min</text>
+<text x="395" y="134" fill="#cdd8e8">6.5</text>
+<text x="505" y="99" fill="#ff6b6b">12.5</text>
+</g>
+<g fill="#8a99af" font-size="11" text-anchor="middle"><text x="175" y="196">k=1</text><text x="285" y="196">k=3</text><text x="395" y="196">k=5</text><text x="505" y="196">k=8</text></g>
+</svg>
+<p class="cap en"><b>The density sweep is U-shaped</b> (gpt-4o-mini). Leakage falls to an interior minimum at
+k=3, then rises again by k=8. That uptick is the hygiene state <i>re-quoting more source vocabulary</i> —
+the tool degrading toward raw ingestion — not the model failing. Cranking k is the wrong lever.</p>
+<p class="cap de"><b>Der Density-Sweep ist U-förmig</b> (gpt-4o-mini). Leakage fällt auf ein inneres Minimum
+bei k=3 und steigt bis k=8 wieder. Dieser Anstieg ist der Hygiene-State, der <i>mehr Quellvokabular
+nachzitiert</i> — das Werkzeug degradiert Richtung Rohaufnahme — nicht das Modell, das versagt. k
+hochzudrehen ist der falsche Hebel.</p>
+</div>
+
+<ul class="q en">
+<li><b>Not a wall.</b> opus is not categorically immune — it <i>did</i> bend under enough multi-turn
+pressure. The threshold sits higher for more capable models; for gpt-5.5-pro no lever we tried (raw
+volume, state density, credible register) crossed it at all.</li>
+<li><b>The only lever that moved a strong model was multi-turn accumulation</b> — a persona/protocol
+apparatus this work deliberately does <b>not</b> build on. Chasing the threshold that way is an arms race
+against model releases, not a stable result.</li>
+</ul>
+<ul class="q de">
+<li><b>Keine Mauer.</b> opus ist nicht kategorisch immun — es <i>kippte</i> unter genug Multi-Turn-Druck.
+Die Schwelle liegt für fähigere Modelle höher; bei gpt-5.5-pro überschritt sie kein Hebel (Rohvolumen,
+State-Dichte, glaubwürdiges Register).</li>
+<li><b>Der einzige Hebel, der ein starkes Modell bewegte, war Multi-Turn-Akkumulation</b> — ein
+Persona-/Protokoll-Apparat, auf dem diese Arbeit bewusst <b>nicht</b> aufbaut. Die Schwelle so zu jagen
+ist ein Wettrüsten gegen Modell-Releases, kein stabiles Ergebnis.</li>
+</ul>
+
+<h2><span class="n">4</span><span class="en">What this is — and is not</span><span class="de">Was das ist — und was nicht</span></h2>
+<div class="panel">
+<p class="small en" style="margin:0">A <b>pilot / proof-of-method</b>: tiny synthetic datasets (3–8 cases),
+two <b>original</b> adversarial corpora (esoteric + credible register), an 8-model dual-axis sweep, and an
+external contamination table used only as a removable cross-check. Enough to establish the <b>method</b>,
+the <b>blind-axis</b> finding and the <b>capability-reversal</b> — not enough for a publishable accuracy
+claim. The contamination metric is a closed, versioned marker set; every load-bearing dataset is original
+to this work, so no third-party persona framework and no external dataset is required for any claim.</p>
+<p class="small de" style="margin:0">Ein <b>Pilot / Machbarkeitsnachweis</b>: winzige synthetische Datensätze
+(3–8 Fälle), zwei <b>originale</b> Angriffskorpora (esoterisches + glaubwürdiges Register), ein
+8-Modell-Dual-Sweep und eine externe Kontaminationstabelle nur als entfernbarer Cross-Check. Genug, um die
+<b>Methode</b>, den <b>Blind-Axis</b>-Befund und die <b>Kapazitäts-Umkehr</b> zu etablieren — nicht genug
+für eine publizierbare Genauigkeitsaussage. Die Kontaminationsmetrik ist ein geschlossenes, versioniertes
+Marker-Set; jeder tragende Datensatz ist original zu dieser Arbeit, daher braucht keine Aussage ein
+Third-Party-Persona-Framework oder einen externen Datensatz.</p>
+</div>
+<p class="lede en" style="margin-top:18px"><b>Consequence for routers &amp; governance:</b> inject top-k*, not
+"much context" — and never build a k-profile on correctness alone. A profile that cannot see the
+contamination axis calibrates on the axis that happens to see nothing.</p>
+<p class="lede de" style="margin-top:18px"><b>Konsequenz für Router &amp; Governance:</b> injiziere top-k*,
+nicht „viel Kontext" — und baue nie ein k-Profil allein auf Korrektheit. Ein Profil, das die
+Kontaminationsachse nicht sehen kann, kalibriert auf der Achse, die zufällig nichts sieht.</p>
+
+</main>
+<footer><div class="wrap">
+<span class="en">Evidence-k · reproducible OpenRouter runs, temperature 0, fixed seed · pilot, small N, relative comparisons.</span>
+<span class="de">Evidence-k · reproduzierbare OpenRouter-Läufe, Temperatur 0, fester Seed · Pilot, kleines N, relative Vergleiche.</span>
+&nbsp;·&nbsp; <a href="https://github.com/hstre/evidence-k">github.com/hstre/evidence-k</a>
+&nbsp;·&nbsp; <a href="https://github.com/hstre/evidence-k/blob/main/docs/paper/evidence-saturation-k.md"><span class="en">full working paper</span><span class="de">vollständiges Arbeitspapier</span></a>
+</div></footer>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  var saved=null; try{saved=localStorage.getItem('ek-lang');}catch(e){}
+  set(saved==='de'?'de':'en');
+  function set(l){
+    root.setAttribute('data-lang',l); root.setAttribute('lang',l);
+    var btns=document.querySelectorAll('.langtoggle button');
+    for(var i=0;i<btns.length;i++){btns[i].classList.toggle('active',btns[i].getAttribute('data-l')===l);}
+    try{localStorage.setItem('ek-lang',l);}catch(e){}
+  }
+  document.addEventListener('click',function(e){
+    var b=e.target.closest?e.target.closest('.langtoggle button'):null;
+    if(b){set(b.getAttribute('data-l'));}
+  });
+})();
+</script>
+</body>
+</html>
