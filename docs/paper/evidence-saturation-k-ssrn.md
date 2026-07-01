@@ -84,11 +84,11 @@ retrieved chunks is standard (Lewis et al., 2020) and increasingly adaptive (Asa
 2023), within a broader turn toward augmented, tool- and context-managed models (Mialon et
 al., 2023). Our k\* is *not* retriever top-k: k here is the empirically optimal number of
 decision-relevant fragments for a model under a defined task and output contract, measured
-against a reliability objective, not a retriever's similarity score. The inference-time-control
-layer argued for by Rentschler (2026a) makes context injection an explicit, governed operation
-but leaves open *how much* to inject and *from which* served backend; k\* is intended as exactly
-that missing calibration quantity — the layer decides that context injection is governed, k\*
-decides the amount — and this paper adds the demonstration that the amount is axis-dependent.
+against a reliability objective, not a retriever's similarity score. Inference-time-control
+proposals argue that context should be made relevant and bounded but do not supply a *quantity*
+to calibrate; k\* is intended as exactly that missing calibration quantity, and this paper adds
+the demonstration that the quantity is axis-dependent. A distinct prerequisite — knowing *which*
+model instance actually served a request — is addressed by cryptographic attestation (§9).
 
 ## 3. Defining k\*
 
@@ -153,7 +153,7 @@ narrow, yet become unreliable when forced to absorb many fragments; a larger mod
 its cost only where it maintains reliability at higher k. This makes k\* useful for routing,
 not merely for prompt construction.
 
-**Inference-time governance.** Systems with an explicit control layer (Rentschler, 2026a) can use k\* as a boundary
+**Inference-time governance.** Systems with an explicit control layer can use k\* as a boundary
 condition: a node in a decision ladder should receive not "as much context as possible" but the
 calibrated top-k\* for its task, model and reliability axis. This turns context injection into
 a governed operation — measurable, auditable and reproducible.
@@ -335,8 +335,11 @@ hence the quantization — could vary within a single k-sweep and between repeti
 k\* difference can therefore carry routing noise, and k\* is *not* shown to be provider-invariant;
 it should be read as a property of `(model, served backend, task, axis)`. Controlled calibration
 requires pinning the provider (order + no fallbacks) and logging the served backend per call, and
-treating `(model, served backend)` as the unit — the governed context operation argued for by
-Rentschler (2026a). (4) **One excluded model** (gemini, extraction artefact). (5) **Cross-corpus
+treating `(model, served backend)` as the unit. Where the served instance cannot simply be
+trusted, cryptographic attestation of the model, policy and runtime configuration (MIVP;
+Rentschler, 2026a) is what makes silent model substitution, routing and quantization changes
+*detectable in the first place* — a prerequisite for any k\* number to be attributable to a known
+instance. (4) **One excluded model** (gemini, extraction artefact). (5) **Cross-corpus
 comparison**: the esoteric-vs-credible contrast in §7.2 mixes corpora; a matched within-corpus
 esoteric density sweep on the same harness is the clean next experiment. (6) **Scale of k**: to
 locate saturation for the largest models one needs cases with tens of genuinely decision-relevant
@@ -346,9 +349,13 @@ probe (technical / medical / legal / finance) so k\* *can* be measured per appli
 deliberately do **not** report per-domain k\* here: such numbers would inherit the provider
 confound of (3), and domains with interdependent evidence — e.g. relational diagnostic graphs —
 may not even satisfy the "independent top-k fragment" assumption of §3, so a single k-profile
-should not be assumed to transfer across domains. Clean per-domain, per-backend calibration is
-precisely the deployment-time measurement the control layer of Rentschler (2026a) is meant to
-host. The natural extensions are a high-fragment dataset (k up to ~89), a task battery (multi-hop,
+should not be assumed to transfer across domains. As a first signal, a rough probe on two small
+models (`granite-4.0-h-micro`, `qwen-2.5-7b`) over four domains — technical / medical / legal /
+finance, identical adversarial structure — returned k\* = 1 in *every* domain, with correctness
+saturating at k = 1: no domain-driven shift here, but the cases proved easy enough that this is a
+floor, not a stress test (and the runs were provider-unpinned per (3)). Clean per-domain,
+per-backend calibration over an *attested* instance is the deployment-time measurement this leaves
+open. The natural extensions are a high-fragment dataset (k up to ~89), a task battery (multi-hop,
 state consistency, conflict resolution, constraint following), provider-pinned re-runs, and
 bootstrap confidence intervals.
 
@@ -379,8 +386,9 @@ of the most.
   Distracted by Irrelevant Context.* International Conference on Machine Learning (ICML).
 - Zhao, Z., Wallace, E., Feng, S., et al. (2021). *Calibrate Before Use: Improving Few-Shot
   Performance of Language Models.* International Conference on Machine Learning (ICML).
-- Rentschler, S. (2026a). *Inference-Time Control as a Missing Layer.* SSRN Working Paper.
-  https://dx.doi.org/10.2139/ssrn.6243978
+- Rentschler, H.-S. (2026a). *Model Identity Verification Protocol (MIVP): A Cryptographic
+  Attestation Standard for AI Systems.* Technical Specification (Draft), v2.1. SSRN Working
+  Paper. https://dx.doi.org/10.2139/ssrn.6243978
 - Rentschler, S. (2026b). *Evidence-k: a benchmark for the evidence-saturation point k\*.*
   Software and data: https://github.com/hstre/evidence-k
 - *DESi context-contamination benchmark* (2026). Deterministic contamination heuristics.
