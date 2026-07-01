@@ -353,7 +353,9 @@ should not be assumed to transfer across domains. As a first signal, a rough pro
 models (`granite-4.0-h-micro`, `qwen-2.5-7b`) over four domains — technical / medical / legal /
 finance, identical adversarial structure — returned k\* = 1 in *every* domain, with correctness
 saturating at k = 1: no domain-driven shift here, but the cases proved easy enough that this is a
-floor, not a stress test (and the runs were provider-unpinned per (3)). Clean per-domain,
+floor, not a stress test (and the runs were provider-unpinned per (3); two further small-model
+runs aborted on transient provider errors with no adapter retry — itself a small instance of that
+fragility). Clean per-domain,
 per-backend calibration over an *attested* instance is the deployment-time measurement this leaves
 open. The natural extensions are a high-fragment dataset (k up to ~89), a task battery (multi-hop,
 state consistency, conflict resolution, constraint following), provider-pinned re-runs, and
