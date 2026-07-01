@@ -335,7 +335,7 @@ releases rather than a stable measurement.
 The results above rest on one task family (§9 item 8). To take a first step past that, we ran a
 **dual-instrumented task battery** — five task *types* (factual recall, multi-hop, state-tracking,
 conflict-resolution, constraint-following) over the *same* contamination surface (esoteric
-register, single-token answers), provider-pinned, both axes scored, over six models. Holding the
+register, single-token answers), provider-pinned, both axes scored, over seven models. Holding the
 contamination surface fixed while varying only the task type isolates whether the
 evidence-saturation point is a property of the task, not just the model.
 
@@ -350,6 +350,7 @@ Each cell is the k that maximises correctness; the ladder is {0, 1, 2, 3, 5, 8, 
 
 | model (served backend) | factual | multi-hop | state | conflict | constraint |
 |---|---|---|---|---|---|
+| gpt-5.5-pro (OpenAI) | 8 | 3 | full | full | 13 |
 | claude-opus-4.8 (Anthropic) | 13 | full | full | full | 13 |
 | gpt-4o (OpenAI) | 5 | 13 | 5 | full | 5 |
 | granite-4.1-8b (WandB) | full | full | full | 13 | 1 |
@@ -360,11 +361,17 @@ Each cell is the k that maximises correctness; the ladder is {0, 1, 2, 3, 5, 8, 
 `llama-3.1-8b` was in the slate but is excluded: it was rate-limited upstream (HTTP 429) on the
 free tier across three separately pinned providers (DeepInfra, Novita, WandB), and the pin
 correctly refused to reroute each time (§6), so no clean single-backend sweep was obtainable.
+`gpt-5.5-pro` — a reasoning model billed at $180/M output — was run at reps = 1 with reasoning
+effort *low* and a 320-token output cap to bound cost (≈ €8 for the row); its per-repetition
+variance was 0.000 at every cell, so reps = 1 costs no resolution here.
 
 Two structural notes carry over from §7.1. First, the **blind axis persists on the harder task
 types**: at each model's correctness-optimal k, correctness is 1.000 while a contamination severity
 of up to 0.084 (gpt-4o, conflict-resolution at k = full) sits underneath it, unflagged — the
-correctness-only profile is exactly as blind here as on the original family. Second, the
+correctness-only profile is exactly as blind here as on the original family. The one exception is
+the strongest model: `gpt-5.5-pro` holds contamination at ≈ 0.000 at every task's correctness-optimal
+k, so its blind spot is small across task types too — consistent with the capability-gated threshold
+of §7.4. Second, the
 **non-monotone / distraction effect (§7.3) is capability-gated**: the 3 B model (`llama-3.2-3b`)
 does *not* reach correct = 1.000 at high k on the multi-hop and state tasks (it falls to 0.50–0.75
 by k = 8–13), i.e. more evidence actively *hurts* the small model on the harder tasks, while the
@@ -429,7 +436,7 @@ per-domain,
 per-backend calibration over an *attested* instance is the deployment-time measurement this leaves
 open. (8) **Task variance is now probed, not just flagged.** The original single-family caveat is
 partly retired: §7.5 reports a first dual-instrumented task battery (five task types, the same
-contamination surface, six provider-pinned models) in which the correctness-optimal k spans k = 1
+contamination surface, seven provider-pinned models) in which the correctness-optimal k spans k = 1
 to k = full across task types for a fixed model, and the blind axis persists on the harder types.
 This establishes that k\* is task-specific in practice and that a single k-profile should not be
 assumed to transfer across task types — but it remains a probe (six single-token cases per task

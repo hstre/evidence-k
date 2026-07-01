@@ -1,0 +1,50 @@
+# Dual-instrumented TASK BATTERY for gpt-5.5-pro — cost-bounded single-model run.
+#
+# gpt-5.5-pro is a reasoning model billed at $30/M input, $180/M output, so a naive
+# full run (reps=2, uncapped) can cost €15-40. This config keeps it under the topped-up
+# budget while staying scientifically valid for the Table-4 row (the correctness-optimal
+# k per task is robust at reps=1):
+#   - repetitions: 1            (the argmax-k per task is stable for one added row)
+#   - reasoning: {effort: low}  (OpenRouter honours this → curbs hidden reasoning tokens,
+#                                the actual cost driver at $180/M output)
+#   - max_tokens: 320           (hard output ceiling → bounds worst-case cost)
+#   - temperature: 1            (gpt-5.x reasoning models reject temperature != 1 with 400)
+# The served backend is pinned per dispatch via the workflow `provider` input (OpenAI).
+#
+#   evidence-k run --config configs/openrouter_dual_battery_gpt55pro.yaml
+
+model:
+  provider: openai_compatible
+  name: openai/gpt-5.5-pro
+  temperature: 1
+  max_tokens: 320
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: OPENROUTER_API_KEY
+  reasoning:
+    effort: low
+
+benchmark:
+  k_values: [0, 1, 2, 3, 5, 8, 13, "full"]
+  repetitions: 1
+  random_seed: 42
+
+tasks:
+  - name: dual_factual
+    dataset: data/dual_battery/factual.jsonl
+  - name: dual_multihop
+    dataset: data/dual_battery/multihop.jsonl
+  - name: dual_state
+    dataset: data/dual_battery/state.jsonl
+  - name: dual_conflict
+    dataset: data/dual_battery/conflict.jsonl
+  - name: dual_constraint
+    dataset: data/dual_battery/constraint.jsonl
+
+scoring:
+  weights:
+    correctness: 0.35
+    grounding: 0.20
+    constraint_adherence: 0.20
+    state_consistency: 0.15
+    hallucination_penalty: 0.10
+    cost_penalty: 0.00
