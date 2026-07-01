@@ -26,7 +26,10 @@ corpus written in a *credible* professional register — rather than an overtly 
 did not overturn this in our runs: the capability ordering persisted, and the strongest
 model was not sharpened by the more plausible framing. Finally, the contamination–vs–state-density curve is non-monotone,
 with an interior optimum and a high-density re-leak, so "use more context" (larger k) is
-the wrong control knob. We position k\* as a calibration primitive that inference-time
+the wrong control knob. A first task battery varying five task types over a fixed contamination
+surface further indicates the correctness-optimal k is **task-specific** — it spans the whole
+ladder (k = 1 to full) for a fixed model — so a k-profile should be calibrated per task type, not
+once per model. We position k\* as a calibration primitive that inference-time
 routers and governance layers can consume: inject top-k\*, not "much context", and never
 calibrate on correctness alone. Results are a pilot (small synthetic datasets, heuristic
 contamination metrics); we report magnitudes and limitations plainly.
@@ -327,6 +330,49 @@ We therefore report a **capability-gated threshold**, not proven immunity, and n
 chasing that threshold with ever-heavier adversarial apparatus is an arms race against model
 releases rather than a stable measurement.
 
+### 7.5 A first task-variance probe: k\* moves with task type
+
+The results above rest on one task family (§9 item 8). To take a first step past that, we ran a
+**dual-instrumented task battery** — five task *types* (factual recall, multi-hop, state-tracking,
+conflict-resolution, constraint-following) over the *same* contamination surface (esoteric
+register, single-token answers), provider-pinned, both axes scored, over six models. Holding the
+contamination surface fixed while varying only the task type isolates whether the
+evidence-saturation point is a property of the task, not just the model.
+
+It is. The correctness-optimal k is **task- and model-specific and spans the whole ladder**: for a
+fixed model it ranges from k = 1 to k = full across the five task types, and no single k is optimal
+across tasks for any model (Table 4). A profile calibrated on factual recall does not transfer to
+conflict-resolution even for a fixed model — the router primitive of §7–§8 must be measured per
+task type, not once per model.
+
+**Table 4. Task battery — correctness-optimal k per (model, task type).**
+Each cell is the k that maximises correctness; the ladder is {0, 1, 2, 3, 5, 8, 13, full}.
+
+| model (served backend) | factual | multi-hop | state | conflict | constraint |
+|---|---|---|---|---|---|
+| claude-opus-4.8 (Anthropic) | 13 | full | full | full | 13 |
+| gpt-4o (OpenAI) | 5 | 13 | 5 | full | 5 |
+| granite-4.1-8b (WandB) | full | full | full | 13 | 1 |
+| granite-4.0-h-micro (Cloudflare) | full | 5 | 5 | full | 5 |
+| qwen-2.5-7b (Together) | full | 8 | 5 | 2 | 3 |
+| llama-3.2-3b (Cloudflare) | 2 | 2 | 5 | full | 8 |
+
+`llama-3.1-8b` was in the slate but is excluded: it was rate-limited upstream (HTTP 429) on the
+free tier across three separately pinned providers (DeepInfra, Novita, WandB), and the pin
+correctly refused to reroute each time (§6), so no clean single-backend sweep was obtainable.
+
+Two structural notes carry over from §7.1. First, the **blind axis persists on the harder task
+types**: at each model's correctness-optimal k, correctness is 1.000 while a contamination severity
+of up to 0.084 (gpt-4o, conflict-resolution at k = full) sits underneath it, unflagged — the
+correctness-only profile is exactly as blind here as on the original family. Second, the
+**non-monotone / distraction effect (§7.3) is capability-gated**: the 3 B model (`llama-3.2-3b`)
+does *not* reach correct = 1.000 at high k on the multi-hop and state tasks (it falls to 0.50–0.75
+by k = 8–13), i.e. more evidence actively *hurts* the small model on the harder tasks, while the
+larger models stay saturated. This is a probe, not a full battery (six cases per task type,
+single-token answers, one contamination register), but it converts §9's "task variance is untested"
+into a first measured result: k\* is task-specific in practice, and a one-profile-per-model
+assumption is unsafe.
+
 ## 8. Discussion
 
 The practical consequence is sharp. A `k_profile` built from correctness **only** is
@@ -339,8 +385,9 @@ context"; (ii) any published k-profile carry a contamination/drift axis, not cor
 alone; and (iii) robustness stress-tests vary register and turn-structure, not state
 density, since density is non-monotone. These recommendations apply per calibrated
 `(model, task, axis)` point — the primitive is already consumed by a router (DESi uses
-k-calibrated state slices as a control primitive, §8) — but the *transfer* of a specific
-k-profile across task types is untested here (§9).
+k-calibrated state slices as a control primitive, §8) — and a first task battery (§7.5) shows the
+correctness-optimal k does *not* transfer across task types, so a profile must be calibrated per
+task type rather than once per model.
 
 ## 9. Limitations and future work
 
@@ -380,14 +427,16 @@ retry-without-reroute) reproduced k\* = 1 in every domain — so here the result
 provider-invariant, and the tool now carries the pinning needed to keep it that way. Clean
 per-domain,
 per-backend calibration over an *attested* instance is the deployment-time measurement this leaves
-open. (8) **One task family carries the headline.** The dual-axis results (§7.1–7.2) rest on a
-single synthetic task; the domain probe varies content but not task *type*. Since k\* is argued to
-be task-specific, the router recommendation (§7) is grounded in an existing application — DESi
-already consumes k-calibrated state slices as a control primitive (§8) — but is *not* yet evidence
-that a specific k-profile transfers across task types; task variance is the next necessary test
-before one profile is assumed to generalise. The natural extensions are a high-fragment dataset
-(k up to ~89), a task battery (multi-hop, state consistency, conflict resolution, constraint
-following), provider-pinned re-runs, and bootstrap confidence intervals.
+open. (8) **Task variance is now probed, not just flagged.** The original single-family caveat is
+partly retired: §7.5 reports a first dual-instrumented task battery (five task types, the same
+contamination surface, six provider-pinned models) in which the correctness-optimal k spans k = 1
+to k = full across task types for a fixed model, and the blind axis persists on the harder types.
+This establishes that k\* is task-specific in practice and that a single k-profile should not be
+assumed to transfer across task types — but it remains a probe (six single-token cases per task
+type, one register, one model dropped to upstream rate-limiting), not a full battery with
+confidence intervals. The natural extensions are a high-fragment dataset (k up to ~89), more cases
+per task type with bootstrap confidence intervals, and the same battery over an *attested* instance
+(item 3).
 
 ## 10. Conclusion
 
