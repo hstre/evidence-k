@@ -188,8 +188,14 @@ unquoted adoption. For the dual-instrumented axis we normalize these into a sing
 in [0, 1] with weights framing 0.45 / drift 0.25 / attribution 0.20 / role 0.10 and
 saturation caps, so contamination is comparable to correctness on one scale. The
 contamination metric is intentionally conservative and diagnostic, not a complete semantic
-measure of epistemic adoption: it detects surface adoption of source vocabulary and role,
-and can under- or over-count paraphrase.
+measure of epistemic adoption. It bundles three surface signals — unquoted framing-vocabulary
+leakage, register drift toward a caregiver voice, and role adoption — and discounts quoted or
+attributed use; it therefore measures *observable surface adoption*, not whether the model has
+internalised the source's ontology or reasoning. A response can adopt the framing while avoiding
+flagged terms (a false negative), and an analytic response that must quote source terms is only
+partly protected by the attribution discount. This proxy gap is why we report a contamination
+*severity* rather than "epistemic adoption", and why the magnitudes are indicative rather than
+calibrated.
 
 ### 6.2 Dual-instrumented design
 
@@ -260,6 +266,14 @@ capability and model recency than with parameter count alone or a "flagship" lab
 
 ### 7.2 A credible register does not overturn the capability ordering
 
+To make the two registers concrete (both corpora are original to this work): an esoteric
+fragment — *"Each dawn the harvest of field-awareness begins: … a resonance attuning the fabric
+of your existence"* — announces its ontology openly, so a model quotes and distances it easily;
+a credible fragment — *"Resistance is information — and the information here is that you are right
+at your growth edge"* — performs the same manipulative move (reframing doubt as a within-frame
+signal) in language that reads as professional competence, so *unquoted* adoption of its terms is
+the only tell.
+
 On the credible professional corpus (extended protocol, framing-leakage counts summed over
 three cases), the capability ordering persists (Table 2). The mid model shows roughly three
 times the framing leakage of the large model, and the large model's absolute leakage is
@@ -323,7 +337,10 @@ configuration — and correctness-only calibration is blind to exactly that regi
 therefore recommend that (i) inference-time routers inject top-k\* rather than "much
 context"; (ii) any published k-profile carry a contamination/drift axis, not correctness
 alone; and (iii) robustness stress-tests vary register and turn-structure, not state
-density, since density is non-monotone.
+density, since density is non-monotone. These recommendations apply per calibrated
+`(model, task, axis)` point — the primitive is already consumed by a router (DESi uses
+k-calibrated state slices as a control primitive, §8) — but the *transfer* of a specific
+k-profile across task types is untested here (§9).
 
 ## 9. Limitations and future work
 
@@ -363,9 +380,14 @@ retry-without-reroute) reproduced k\* = 1 in every domain — so here the result
 provider-invariant, and the tool now carries the pinning needed to keep it that way. Clean
 per-domain,
 per-backend calibration over an *attested* instance is the deployment-time measurement this leaves
-open. The natural extensions are a high-fragment dataset (k up to ~89), a task battery (multi-hop,
-state consistency, conflict resolution, constraint following), provider-pinned re-runs, and
-bootstrap confidence intervals.
+open. (8) **One task family carries the headline.** The dual-axis results (§7.1–7.2) rest on a
+single synthetic task; the domain probe varies content but not task *type*. Since k\* is argued to
+be task-specific, the router recommendation (§7) is grounded in an existing application — DESi
+already consumes k-calibrated state slices as a control primitive (§8) — but is *not* yet evidence
+that a specific k-profile transfers across task types; task variance is the next necessary test
+before one profile is assumed to generalise. The natural extensions are a high-fragment dataset
+(k up to ~89), a task battery (multi-hop, state consistency, conflict resolution, constraint
+following), provider-pinned re-runs, and bootstrap confidence intervals.
 
 ## 10. Conclusion
 
