@@ -9,7 +9,7 @@ description = "Measure how much evidence an LLM can use before context turns int
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
-authors = [{ name = "Steffen Rentschler" }]
+authors = [{ name = "Hanns-Steffen Rentschler" }]
 keywords = ["llm", "evidence", "rag", "context", "benchmark", "calibration"]
 dependencies = [
     "PyYAML>=6.0",
