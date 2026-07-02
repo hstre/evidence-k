@@ -2,9 +2,9 @@
 #
 # gpt-5.5-pro is a reasoning model billed at $30/M input, $180/M output, so a naive
 # full run (reps=2, uncapped) can cost €15-40. This config keeps it under the topped-up
-# budget while staying scientifically valid for the Table-4 row (the correctness-optimal
-# k per task is robust at reps=1):
-#   - repetitions: 1            (the argmax-k per task is stable for one added row)
+# budget while staying scientifically valid for the Table-4 row (the reliability-optimal
+# k* per task is robust at reps=1):
+#   - repetitions: 1            (k* per task is stable for one added row)
 #   - reasoning: {effort: low}  (OpenRouter honours this → curbs hidden reasoning tokens,
 #                                the actual cost driver at $180/M output)
 #   - max_tokens: 320           (hard output ceiling → bounds worst-case cost)

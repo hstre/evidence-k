@@ -52,6 +52,6 @@ def test_dual_sweep_records_contamination_and_blind_spot():
     assert agg["full"]["contamination"] > 0.0
 
     dual = build_dual_report(result)["dual_instrumented"]
-    assert dual["correctness_optimal_k"] in [0, 1, 3, "full"]
+    assert dual["reliability_optimal_k"] in [0, 1, 3, "full"]
     assert dual["blind_spot_severity"] is not None
     assert 0.0 <= dual["max_contamination"] <= 1.0
